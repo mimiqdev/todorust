@@ -1,7 +1,8 @@
 use reqwest::Client as HttpClient;
 use serde::Serialize;
 
-use crate::models::{Filter, Project, SyncResponse, Task, TaskOutput};
+use crate::models::{Filter, Project, ProjectsResponse, SyncResponse, Task, TaskOutput, TasksResponse};
+use crate::error::TodoError;
 
 pub struct TodoistClient {
     token: String,
@@ -31,17 +32,15 @@ impl TodoistClient {
             .await?;
 
         let status = response.status();
+        let response_text = response.text().await?;
 
-        if status.is_success() {
-            let projects = response.json::<Vec<Project>>().await?;
-            Ok(projects)
-        } else {
-            let error_text = response
-                .text()
-                .await
-                .unwrap_or_else(|_| "Unknown error".to_string());
-            Err(crate::error::TodoError::Http(status.as_u16(), error_text))
+        if !status.is_success() {
+            return Err(TodoError::Http(status.as_u16(), response_text));
         }
+
+        let projects_response: ProjectsResponse = serde_json::from_str(&response_text)
+            .map_err(|e| TodoError::Api(format!("Failed to parse projects response: {}\nResponse: {}", e, response_text)))?;
+        Ok(projects_response.results)
     }
 
     pub async fn get_tasks(
@@ -59,17 +58,15 @@ impl TodoistClient {
 
         let response = request.send().await?;
         let status = response.status();
+        let response_text = response.text().await?;
 
-        if status.is_success() {
-            let tasks = response.json::<Vec<Task>>().await?;
-            Ok(self.enrich_tasks(tasks).await)
-        } else {
-            let error_text = response
-                .text()
-                .await
-                .unwrap_or_else(|_| "Unknown error".to_string());
-            Err(crate::error::TodoError::Http(status.as_u16(), error_text))
+        if !status.is_success() {
+            return Err(TodoError::Http(status.as_u16(), response_text));
         }
+
+        let tasks_response: TasksResponse = serde_json::from_str(&response_text)
+            .map_err(|e| TodoError::Api(format!("Failed to parse tasks response: {}\nResponse: {}", e, response_text)))?;
+        Ok(self.enrich_tasks(tasks_response.results).await)
     }
 
     async fn enrich_tasks(&self, tasks: Vec<Task>) -> Vec<TaskOutput> {
@@ -112,17 +109,15 @@ impl TodoistClient {
             .await?;
 
         let status = response.status();
+        let response_text = response.text().await?;
 
-        if status.is_success() {
-            let sync_data: SyncResponse = response.json().await?;
-            Ok(sync_data.filters)
-        } else {
-            let error_text = response
-                .text()
-                .await
-                .unwrap_or_else(|_| "Unknown error".to_string());
-            Err(crate::error::TodoError::Http(status.as_u16(), error_text))
+        if !status.is_success() {
+            return Err(TodoError::Http(status.as_u16(), response_text));
         }
+
+        let sync_data: SyncResponse = serde_json::from_str(&response_text)
+            .map_err(|e| TodoError::Api(format!("Failed to parse filters response: {}\nResponse: {}", e, response_text)))?;
+        Ok(sync_data.filters)
     }
 
     pub async fn create_task(
@@ -148,18 +143,16 @@ impl TodoistClient {
             .await?;
 
         let status = response.status();
+        let response_text = response.text().await?;
 
-        if status.is_success() {
-            let task: Task = response.json().await?;
-            let enriched = self.enrich_tasks(vec![task]).await;
-            Ok(enriched.into_iter().next().unwrap())
-        } else {
-            let error_text = response
-                .text()
-                .await
-                .unwrap_or_else(|_| "Unknown error".to_string());
-            Err(crate::error::TodoError::Http(status.as_u16(), error_text))
+        if !status.is_success() {
+            return Err(crate::error::TodoError::Http(status.as_u16(), response_text));
         }
+
+        let task: Task = serde_json::from_str(&response_text)
+            .map_err(|e| TodoError::Api(format!("Failed to parse task response: {}\nResponse: {}", e, response_text)))?;
+        let enriched = self.enrich_tasks(vec![task]).await;
+        Ok(enriched.into_iter().next().unwrap())
     }
 
     #[allow(dead_code)]
@@ -172,15 +165,12 @@ impl TodoistClient {
             .await?;
 
         let status = response.status();
+        let response_text = response.text().await?;
 
         if status.is_success() || status.as_u16() == 404 {
             Ok(())
         } else {
-            let error_text = response
-                .text()
-                .await
-                .unwrap_or_else(|_| "Unknown error".to_string());
-            Err(crate::error::TodoError::Http(status.as_u16(), error_text))
+            Err(TodoError::Http(status.as_u16(), response_text))
         }
     }
 
@@ -193,15 +183,12 @@ impl TodoistClient {
             .await?;
 
         let status = response.status();
+        let response_text = response.text().await?;
 
         if status.is_success() || status.as_u16() == 204 {
             Ok(())
         } else {
-            let error_text = response
-                .text()
-                .await
-                .unwrap_or_else(|_| "Unknown error".to_string());
-            Err(crate::error::TodoError::Http(status.as_u16(), error_text))
+            Err(TodoError::Http(status.as_u16(), response_text))
         }
     }
 
@@ -214,15 +201,12 @@ impl TodoistClient {
             .await?;
 
         let status = response.status();
+        let response_text = response.text().await?;
 
         if status.is_success() || status.as_u16() == 204 {
             Ok(())
         } else {
-            let error_text = response
-                .text()
-                .await
-                .unwrap_or_else(|_| "Unknown error".to_string());
-            Err(crate::error::TodoError::Http(status.as_u16(), error_text))
+            Err(TodoError::Http(status.as_u16(), response_text))
         }
     }
 }

@@ -7,7 +7,6 @@ pub struct Project {
     pub color: String,
     pub is_shared: bool,
     pub is_favorite: bool,
-    pub url: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -17,8 +16,11 @@ pub struct Task {
     pub project_id: Option<String>,
     #[serde(default)]
     pub due: Option<Due>,
+    #[serde(alias = "checked")]
     pub is_completed: bool,
+    #[serde(alias = "added_at")]
     pub created_at: String,
+    #[serde(alias = "child_order")]
     pub order: i32,
     pub priority: u8,
     #[serde(default)]
@@ -56,4 +58,14 @@ pub struct Filter {
 #[derive(Debug, Deserialize)]
 pub struct SyncResponse {
     pub filters: Vec<Filter>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct ProjectsResponse {
+    pub results: Vec<Project>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct TasksResponse {
+    pub results: Vec<Task>,
 }
