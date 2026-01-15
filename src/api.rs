@@ -47,35 +47,27 @@ impl TodoistClient {
         &self,
         filter: Option<String>,
     ) -> Result<Vec<TaskOutput>, crate::error::TodoError> {
+        // Use the /filter endpoint when filter is provided, /tasks for no filter
+        let endpoint = if filter.is_some() {
+            format!("{}/tasks/filter", self.base_url)
+        } else {
+            format!("{}/tasks", self.base_url)
+        };
+
         let mut request = self
             .http
-            .get(format!("{}/tasks", self.base_url))
+            .get(&endpoint)
             .header("Authorization", self.get_auth_header());
 
-        // DEBUG: Capture filter for logging before it's moved
-        let filter_debug = filter.clone();
-
-        // DEBUG: Build and log the URL being requested
-        let mut url = format!("{}/tasks", self.base_url);
-        if let Some(ref filter_str) = filter {
-            eprintln!("DEBUG: Filter string: {:?}", filter_str);
-            // Check if it needs URL encoding
-            if filter_str.contains(' ') || filter_str.contains('&') {
-                eprintln!("DEBUG: Filter contains special chars that may need encoding");
-            }
-        }
-
+        // Use 'query' parameter name for filter endpoint
         if let Some(filter_str) = filter {
-            request = request.query(&[("filter", filter_str)]);
+            request = request.query(&[("query", &filter_str)]);
         }
 
         let response = request.send().await?;
+
         let status = response.status();
         let response_text = response.text().await?;
-
-        // DEBUG: Log raw API response to verify field names
-        eprintln!("DEBUG: Raw API response for filter '{:?}':", filter_debug);
-        eprintln!("{}", response_text);
 
         if !status.is_success() {
             return Err(TodoError::Http(status.as_u16(), response_text));
