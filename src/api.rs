@@ -167,6 +167,42 @@ impl TodoistClient {
             Err(crate::error::TodoError::Http(status.as_u16(), error_text))
         }
     }
+
+    pub async fn complete_task(&self, task_id: &str) -> Result<(), crate::error::TodoError> {
+        let response = self
+            .http
+            .post(format!("{}/tasks/{}/close", self.base_url, task_id))
+            .header("Authorization", self.get_auth_header())
+            .send()
+            .await?;
+
+        let status = response.status();
+
+        if status.is_success() || status.as_u16() == 204 {
+            Ok(())
+        } else {
+            let error_text = response.text().await.unwrap_or_else(|_| "Unknown error".to_string());
+            Err(crate::error::TodoError::Http(status.as_u16(), error_text))
+        }
+    }
+
+    pub async fn reopen_task(&self, task_id: &str) -> Result<(), crate::error::TodoError> {
+        let response = self
+            .http
+            .post(format!("{}/tasks/{}/reopen", self.base_url, task_id))
+            .header("Authorization", self.get_auth_header())
+            .send()
+            .await?;
+
+        let status = response.status();
+
+        if status.is_success() || status.as_u16() == 204 {
+            Ok(())
+        } else {
+            let error_text = response.text().await.unwrap_or_else(|_| "Unknown error".to_string());
+            Err(crate::error::TodoError::Http(status.as_u16(), error_text))
+        }
+    }
 }
 
 #[derive(Serialize)]
@@ -290,5 +326,60 @@ mod tests {
 
         // Cleanup
         let _ = client.delete_task(&task_output.id).await;
+    }
+
+    #[tokio::test]
+    #[ignore]
+    async fn test_complete_task_real() {
+        let client = TodoistClient::new(std::env::var("TODOIST_TOKEN").expect("TODOIST_TOKEN env var"));
+
+        // Create a task first
+        let task = client
+            .create_task("Test task for completion", None, None, None)
+            .await
+            .unwrap();
+
+        // Complete it
+        client.complete_task(&task.id).await.unwrap();
+
+        // Verify it's completed
+        let tasks = client
+            .get_tasks(Some(format!("id:{}", task.id)))
+            .await
+            .unwrap();
+
+        assert_eq!(tasks.len(), 1);
+        assert!(tasks[0].is_completed);
+
+        // Cleanup
+        let _ = client.delete_task(&task.id).await;
+    }
+
+    #[tokio::test]
+    #[ignore]
+    async fn test_reopen_task_real() {
+        let client = TodoistClient::new(std::env::var("TODOIST_TOKEN").expect("TODOIST_TOKEN env var"));
+
+        // Create and complete a task
+        let task = client
+            .create_task("Test task for reopening", None, None, None)
+            .await
+            .unwrap();
+        client.complete_task(&task.id).await.unwrap();
+
+        // Reopen it
+        client.reopen_task(&task.id).await.unwrap();
+
+        // Verify it's not completed
+        let tasks = client
+            .get_tasks(Some(format!("id:{}", task.id)))
+            .await
+            .unwrap();
+
+        assert_eq!(tasks.len(), 1);
+        assert!(!tasks[0].is_completed);
+
+        // Cleanup
+        let _ = client.delete_task(&task.id).await;
     }
 }
