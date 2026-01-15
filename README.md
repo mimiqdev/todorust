@@ -86,13 +86,27 @@ todorust tasks --filter "project:Work" --format structured
 ### Get Projects
 
 ```bash
+# Get projects as JSON (default)
 todorust projects
+
+# Get projects as checklist
+todorust projects --format checklist
+
+# Get projects with detailed info
+todorust projects --format structured
 ```
 
 ### Get Filters
 
 ```bash
+# Get filters as JSON (default)
 todorust filters
+
+# Get filters as checklist
+todorust filters --format checklist
+
+# Get filters with detailed info
+todorust filters --format structured
 ```
 
 ### Create Task
@@ -103,6 +117,9 @@ todorust create --content "Buy milk"
 
 # With project and due date
 todorust create --content "Write report" --project-id "123" --due-date "2026-01-20" --priority 4
+
+# With labels
+todorust create --content "Urgent task" --labels "urgent,work"
 ```
 
 ### Complete/Reopen Task
