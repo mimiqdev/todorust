@@ -1,136 +1,169 @@
 ---
 name: obsidian-todorust
-description: Data retrieval skill for Todoist tasks and projects using todorust CLI. Provides structured JSON data from Todoist for report generation in Obsidian. Use when skills need to: (1) Fetch completed tasks by date range for daily/weekly reports, (2) Query tasks by project, priority, or custom filters, (3) Get project lists and metadata, (4) Parse todorust JSON output for integration with Obsidian workflows
+description: Todoist data retrieval for Obsidian using todorust CLI. Fetch tasks and projects in ready-to-use Markdown formats. Use when skills need to: (1) Get completed tasks for daily/weekly reports, (2) Query by project, date, or filters, (3) Generate checklists or structured reports, (4) Integrate Todoist data into Obsidian notes
 ---
 
 # Obsidian Todoist Integration
 
-Data retrieval skill for Todoist task and project information using todorust CLI. Use when other skills (daily notes, weekly reports, etc.) need to fetch structured task/project data from Todoist for report generation or analysis.
+Data retrieval skill for Todoist tasks and projects using todorust CLI. Provides formatted Markdown output ready for Obsidian notes. Use when other skills (daily notes, weekly reports) need Todoist data.
 
 ## Quick Start
 
-### Check Installation
-
-First verify todorust is installed and configured:
+### Verify Installation
 
 ```bash
 which todorust
 todorust --help
 ```
 
-If not installed, see [installation reference](references/todorust-setup.md).
+If not installed, see [installation guide](references/todorust-setup.md).
 
-### Basic Queries
+### Basic Usage
 
-**Get all active tasks:**
+**Get today's completed tasks as checklist:**
+```bash
+todorust tasks --filter 'completed today' --format checklist
+```
+
+**Get this week's tasks organized by project:**
+```bash
+todorust tasks --filter 'completed within "7 days of today"' --format structured
+```
+
+**Get all tasks as JSON:**
 ```bash
 todorust tasks
 ```
 
-**Get completed tasks today:**
+## Output Formats
+
+Todorust supports three output formats via `--format` parameter:
+
+### Checklist (`--format checklist`)
+
+Simple Markdown checklist for daily notes:
 ```bash
-todorust tasks --filter 'completed today'
+todorust tasks --format checklist
 ```
 
-**Get tasks completed this week:**
-```bash
-todorust tasks --filter 'completed within "7 days of today"'
+Output:
+```
+- [x] Complete proposal (Work)
+- [ ] Review docs (Work)
+- [x] Buy groceries (Personal)
 ```
 
-**Get tasks for specific project:**
+Rules:
+- `- [x]` for completed tasks
+- `- [ ]` for incomplete tasks
+- Shows project name in parentheses
+- Perfect for daily notes
+
+### Structured (`--format structured`)
+
+Organized by project with priority info:
 ```bash
-todorust tasks --filter 'project:Work'
+todorust tasks --format structured
 ```
 
-**Get completed tasks for project this week:**
-```bash
-todorust tasks --filter 'project:Work & completed within "7 days of today"'
+Output:
+```
+## Personal
+
+- [x] Buy groceries
+- [ ] Pay bills (Priority: 2)
+
+## Work
+
+- [x] Complete proposal (Priority: 4)
+- [ ] Review docs (Priority: 3)
 ```
 
-**Get all projects:**
+Rules:
+- Grouped by project (## headings)
+- Shows priority for tasks > 1
+- Perfect for weekly reports
+
+### JSON (default)
+
+Full data structure for scripts:
 ```bash
-todorust projects
+todorust tasks
 ```
 
-### Common Filter Patterns
+See [JSON schema reference](references/todorust-output.md).
+
+## Common Filter Patterns
 
 See [Todoist filter syntax](references/todoist-filters.md) for complete reference.
 
-Quick reference:
-- `completed today` - Tasks completed today
-- `completed within "7 days of today"` - Completed in last 7 days
-- `project:ProjectName` - Filter by project
-- `priority:4` - High priority only
-- Combine with `&` and `|` for complex filters
-
-## Output Format
-
-All todorust commands return JSON. See [output format reference](references/todorust-output.md) for complete schema.
-
-**Task output includes:**
-```json
-{
-  "id": "123",
-  "content": "Task name",
-  "project_id": "456",
-  "project_name": "Work",
-  "due_date": "2026-01-15",
-  "is_completed": true,
-  "priority": 4,
-  "labels": ["urgent"]
-}
+**Daily report:**
+```bash
+todorust tasks --filter 'completed today' --format checklist
 ```
 
-**Project output includes:**
-```json
-{
-  "id": "456",
-  "name": "Work",
-  "color": "blue",
-  "is_shared": false,
-  "is_favorite": true
-}
+**Weekly report:**
+```bash
+todorust tasks --filter 'completed within "7 days of today"' --format structured
 ```
 
-## Usage in Other Skills
+**Project-specific:**
+```bash
+todorust tasks --filter 'project:Work & completed within "7 days"' --format structured
+```
 
-This skill provides raw data. Use it from other skills to:
+**High priority:**
+```bash
+todorust tasks --filter 'priority:4' --format checklist
+```
 
-1. **Call todorust** with appropriate filter
-2. **Parse JSON output** using jq or native JSON parsing
-3. **Transform data** for your report format
+## Integration Examples
 
-### Example: Daily Report
+### Daily Notes Skill
 
 ```bash
-# Get today's completed tasks
-TASKS=$(todorust tasks --filter 'completed today')
-
-# Parse and format (example with jq)
-echo "$TASKS" | jq -r '.[] | "- [x] \(.content) (Project: \(.project_name // "No Project"))"'
+# Get today's completed tasks as ready-to-use checklist
+todorust tasks --filter 'completed today' --format checklist
 ```
 
-### Example: Weekly Report by Project
+No parsing needed - direct output to note!
+
+Output:
+```
+- [x] Complete proposal (Work)
+- [x] Team meeting (Work)
+- [x] Buy groceries (Personal)
+```
+
+### Weekly Review Skill
 
 ```bash
-# Get this week's completed tasks
-TASKS=$(todorust tasks --filter 'completed within "7 days of today"')
-
-# Group by project
-echo "$TASKS" | jq -r 'group_by(.project_name) | .[] |
-  "## \(.[0].project_name // "No Project")\n" +
-  (.[] | "- [x] \(.content)")'
+# Get this week's tasks organized by project
+todorust tasks --filter 'completed within "7 days of today"' --format structured
 ```
 
-### Example: With Date Range
+Ready to paste into weekly review template!
 
-For skills that have calculated start/end dates:
+Output:
+```
+## Personal
+
+- [x] Buy groceries
+- [ ] Pay bills (Priority: 2)
+
+## Work
+
+- [x] Complete proposal (Priority: 4)
+- [x] Team meeting (Priority: 3)
+- [ ] Review docs (Priority: 3)
+```
+
+### Custom Date Range
 
 ```bash
 START_DATE="2026-01-10"
 END_DATE="2026-01-16"
-
-todorust tasks --filter "completed within \"$START_DATE to $END_DATE\""
+todorust tasks --filter "completed within \"$START_DATE to $END_DATE\"" --format structured
 ```
 
 ## Error Handling
@@ -140,7 +173,6 @@ todorust tasks --filter "completed within \"$START_DATE to $END_DATE\""
 Error: Configuration not found.
 Run: todorust init --api-token YOUR_TOKEN
 ```
-→ User needs to initialize todorust first
 
 **API errors:**
 - Check token is valid
@@ -149,28 +181,24 @@ Run: todorust init --api-token YOUR_TOKEN
 
 **Empty results:**
 - Normal if no tasks match filter
-- Returns `[]` JSON array
-
-## Integration Notes
-
-**For daily note skills:**
-- Use `completed today` filter
-- Parse task list for checklist format
-- Extract project_name for categorization
-
-**For weekly review skills:**
-- Use `completed within "7 days of today"` filter
-- Or use custom date range if skill calculates week boundaries
-- Group by project_name for structured report
-- Use priority field for highlighting
-
-**For custom date queries:**
-- Todoist filter syntax supports date ranges
-- Format: `completed within "START_DATE to END_DATE"`
-- Dates in YYYY-MM-DD format
+- Returns empty output (no error)
 
 ## Performance
 
 - API calls take 1-3 seconds typically
-- Cache results if needed for multiple reports
+- Output is already formatted, no parsing needed
 - todorust handles rate limiting internally
+
+## Integration Notes
+
+**For daily note skills:**
+- Use `--format checklist` for task lists
+- Direct output to notes, no transformation needed
+
+**For weekly review skills:**
+- Use `--format structured` for organized reports
+- Output is ready for weekly templates
+
+**For programmatic use:**
+- Use `--format json` (default) for data processing
+- See [JSON schema reference](references/todorust-output.md)

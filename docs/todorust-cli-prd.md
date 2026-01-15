@@ -77,10 +77,12 @@ Todorust-cli是一个专为AI工具和脚本集成的Todoist CLI工具，旨在�
 
 **Acceptance Criteria:**
 - [ ] 支持完整的Todoist filter语法（如 `project:WORK & completed within "7 days of today"`）
+- [ ] 支持多种输出格式：JSON（默认）、Markdown checklist、Markdown structured
 - [ ] 返回精简的JSON格式，包含：id, content, project_id, project_name, due_date, is_completed, created_at, order, priority, labels, tags
 - [ ] 支持通过project_id、label、日期范围等参数过滤
 - [ ] 支持分页查询
 - [ ] 错误时返回标准HTTP状态码和简单的错误信息
+- [ ] `--format` 参数支持全局设置和命令级别覆盖
 
 ### Story 2: 获取项目列表
 
@@ -135,22 +137,27 @@ Todorust-cli是一个专为AI工具和脚本集成的Todoist CLI工具，旨在�
 ### Core Features
 
 **Feature 1: 任务查询**
-- Description: 使用Todoist filter语法查询任务，返回精简的JSON格式
+- Description: 使用Todoist filter语法查询任务，返回多种格式输出（JSON/Markdown）
 - User flow:
-  1. 用户执行 `todorust tasks --filter="project:WORK & completed within \"7 days of today\""`
+  1. 用户执行 `todorust tasks --filter="project:WORK & completed within \"7 days of today\"" --format checklist`
   2. 工具从配置文件读取API token
-  3. 调用Todoist API v1的 `/api/v1/tasks/filter` 端点
+  3. 调用Todoist API v1的 `/api/v1/tasks` 端点
   4. 解析API响应，提取核心字段
   5. 关联project_id到project_name
-  6. 返回精简的JSON数组
+  6. 根据--format参数格式化输出（默认JSON）
+  7. 返回格式化结果
 - Edge cases:
-  - API返回空结果：返回空数组 `[]`
+  - API返回空结果：返回空数组 `[]`（JSON）或空文本（Markdown）
   - 网络超时：返回HTTP 500错误
   - 认证失败：返回HTTP 401错误
 - Error handling:
   - 网络错误：返回500状态码，错误信息包含简要说明
   - API错误：透传Todoist API的状态码和简单错误消息
   - 配置文件缺失：返回400状态码，提示用户配置API token
+- Output formats:
+  - `json`: 精简JSON数组（默认，用于程序化访问）
+  - `checklist`: Markdown checklist格式（用于Obsidian笔记）
+  - `structured`: 按项目分组的Markdown报告（用于周报）
 
 **Feature 2: 项目查询**
 - Description: 获取所有Todoist项目列表
@@ -254,10 +261,10 @@ Todorust-cli是一个专为AI工具和脚本集成的Todoist CLI工具，旨在�
 - 创建任务
 - 更新任务状态（完成/重新打开）
 - 配置文件管理（TOML格式，API token）
-- 精简JSON输出格式（基础+元数据+关联字段+tags）
+- 多种输出格式支持（JSON、Markdown checklist、Markdown structured）
 - 基础错误处理（标准HTTP状态码）
 
-**MVP Definition**: 完成上述所有功能，能够在Obsidian workflow中实现"获取WORK项目中本周完成的任务并生成周报"的端到端场景。
+**MVP Definition**: 完成上述所有功能，能够在Obsidian workflow中实现"获取WORK项目中本周完成的任务并生成周报"的端到端场景。支持`--format`参数直接输出Markdown格式，无需额外解析。
 
 ### Phase 2: Enhancements (Post-Launch)
 - 支持更新任务的更多属性（due_date, priority, labels等）
