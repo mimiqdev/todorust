@@ -1,5 +1,5 @@
 use clap::ValueEnum;
-use crate::models::{TaskOutput, Project};
+use crate::models::{TaskOutput, Project, Filter};
 
 #[derive(Clone, Debug, PartialEq, ValueEnum)]
 pub enum OutputFormat {
@@ -114,6 +114,41 @@ fn format_projects_structured(projects: &[Project]) -> String {
                 project.color,
                 project.id,
                 if meta.is_empty() { String::new() } else { format!("**Meta:** {}\n", meta) }
+            )
+        })
+        .collect::<Vec<_>>()
+        .join("\n\n")
+}
+
+impl Formattable for Vec<Filter> {
+    fn format(&self, format: &OutputFormat) -> String {
+        match format {
+            OutputFormat::Json => format_json_filters(self),
+            OutputFormat::Checklist => format_filters_checklist(self),
+            OutputFormat::Structured => format_filters_structured(self),
+        }
+    }
+}
+
+fn format_json_filters(filters: &[Filter]) -> String {
+    serde_json::to_string_pretty(filters).unwrap_or_default()
+}
+
+fn format_filters_checklist(filters: &[Filter]) -> String {
+    filters.iter()
+        .map(|filter| {
+            format!("- [ ] {} ({})", filter.name, filter.query)
+        })
+        .collect::<Vec<_>>()
+        .join("\n")
+}
+
+fn format_filters_structured(filters: &[Filter]) -> String {
+    filters.iter()
+        .map(|filter| {
+            format!(
+                "### {}\n\n**Filter:** `{}`\n**ID:** {}\n",
+                filter.name, filter.query, filter.id
             )
         })
         .collect::<Vec<_>>()
@@ -280,6 +315,53 @@ mod tests {
         }];
 
         let output = projects.format(&OutputFormat::Json);
+        assert!(output.contains("\"name\""));
+        assert!(output.contains("Test"));
+    }
+
+    #[test]
+    fn test_format_filters_checklist() {
+        let filters = vec![
+            Filter {
+                id: "1".to_string(),
+                name: "This Week".to_string(),
+                query: "due within \"7 days of today\"".to_string(),
+            },
+            Filter {
+                id: "2".to_string(),
+                name: "Work High Priority".to_string(),
+                query: "project:Work & priority:4".to_string(),
+            },
+        ];
+
+        let output = filters.format(&OutputFormat::Checklist);
+        assert!(output.contains("- [ ] This Week"));
+        assert!(output.contains("(due within \"7 days of today\")"));
+    }
+
+    #[test]
+    fn test_format_filters_structured() {
+        let filters = vec![Filter {
+            id: "1".to_string(),
+            name: "Urgent Tasks".to_string(),
+            query: "priority:4".to_string(),
+        }];
+
+        let output = filters.format(&OutputFormat::Structured);
+        assert!(output.contains("### Urgent Tasks"));
+        assert!(output.contains("**Filter:** `priority:4`"));
+        assert!(output.contains("**ID:** 1"));
+    }
+
+    #[test]
+    fn test_format_filters_json() {
+        let filters = vec![Filter {
+            id: "1".to_string(),
+            name: "Test".to_string(),
+            query: "project:Work".to_string(),
+        }];
+
+        let output = filters.format(&OutputFormat::Json);
         assert!(output.contains("\"name\""));
         assert!(output.contains("Test"));
     }

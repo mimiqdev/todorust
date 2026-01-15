@@ -131,8 +131,7 @@ async fn main() {
             Commands::Filters { format } => {
                 let output_format = format.unwrap_or(cli.format);
                 let filters = client.get_filters().await?;
-                // TODO: Implement filter formatting
-                let output = serde_json::to_string_pretty(&filters)?;
+                let output = filters.format(&output_format);
                 println!("{}", output);
             }
             Commands::Create {
