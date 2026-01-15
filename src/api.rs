@@ -252,13 +252,39 @@ mod tests {
             "name": "Work",
             "color": "blue",
             "is_shared": false,
-            "is_favorite": true,
-            "url": "https://todoist.com/showProject/123"
+            "is_favorite": true
         }"#;
 
         let project: Project = serde_json::from_str(json).unwrap();
         assert_eq!(project.id, "123");
         assert_eq!(project.name, "Work");
+    }
+
+    #[test]
+    fn test_projects_response_wrapper() {
+        let json = r#"{
+            "results": [
+                {
+                    "id": "123",
+                    "name": "Work",
+                    "color": "blue",
+                    "is_shared": false,
+                    "is_favorite": true
+                },
+                {
+                    "id": "456",
+                    "name": "Personal",
+                    "color": "green",
+                    "is_shared": false,
+                    "is_favorite": false
+                }
+            ]
+        }"#;
+
+        let response: ProjectsResponse = serde_json::from_str(json).unwrap();
+        assert_eq!(response.results.len(), 2);
+        assert_eq!(response.results[0].name, "Work");
+        assert_eq!(response.results[1].name, "Personal");
     }
 
     #[test]
@@ -278,6 +304,61 @@ mod tests {
         let task: crate::models::Task = serde_json::from_str(json).unwrap();
         assert_eq!(task.id, "456");
         assert_eq!(task.content, "Buy milk");
+    }
+
+    #[test]
+    fn test_task_deserialization_api_format() {
+        let json = r#"{
+            "id": "789",
+            "content": "API format task",
+            "project_id": "123",
+            "due": {"date": "2026-01-15"},
+            "checked": false,
+            "added_at": "2026-01-10T10:00:00Z",
+            "child_order": 1,
+            "priority": 4,
+            "labels": ["shopping"]
+        }"#;
+
+        let task: crate::models::Task = serde_json::from_str(json).unwrap();
+        assert_eq!(task.id, "789");
+        assert_eq!(task.content, "API format task");
+        assert_eq!(task.is_completed, false);
+        assert_eq!(task.created_at, "2026-01-10T10:00:00Z");
+        assert_eq!(task.order, 1);
+    }
+
+    #[test]
+    fn test_tasks_response_wrapper() {
+        let json = r#"{
+            "results": [
+                {
+                    "id": "789",
+                    "content": "Task 1",
+                    "project_id": "123",
+                    "checked": false,
+                    "added_at": "2026-01-10T10:00:00Z",
+                    "child_order": 1,
+                    "priority": 4,
+                    "labels": []
+                },
+                {
+                    "id": "790",
+                    "content": "Task 2",
+                    "project_id": "456",
+                    "checked": true,
+                    "added_at": "2026-01-11T10:00:00Z",
+                    "child_order": 2,
+                    "priority": 2,
+                    "labels": ["urgent"]
+                }
+            ]
+        }"#;
+
+        let response: TasksResponse = serde_json::from_str(json).unwrap();
+        assert_eq!(response.results.len(), 2);
+        assert_eq!(response.results[0].content, "Task 1");
+        assert_eq!(response.results[1].content, "Task 2");
     }
 
     #[test]
