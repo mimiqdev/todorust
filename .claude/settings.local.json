@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Skill(executing-plans)",
+      "Bash(cargo build:*)",
+      "Bash(todorust tasks:*)",
+      "Bash(cargo run:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(cargo test:*)",
+      "mcp__web-reader__webReader"
+    ]
+  }
+}

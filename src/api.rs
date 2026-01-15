@@ -47,8 +47,17 @@ impl TodoistClient {
         &self,
         filter: Option<String>,
     ) -> Result<Vec<TaskOutput>, crate::error::TodoError> {
-        // Use the /filter endpoint when filter is provided, /tasks for no filter
-        let endpoint = if filter.is_some() {
+        // Check if filter is asking for completed tasks
+        let uses_completed_filter = filter.as_ref()
+            .map(|f| f.contains("completed"))
+            .unwrap_or(false);
+
+        // Use /tasks/completed/by_completion_date for completed tasks
+        // Use /tasks/filter for other filters
+        // Use /tasks for no filter
+        let endpoint = if uses_completed_filter {
+            format!("{}/tasks/completed/by_completion_date", self.base_url)
+        } else if filter.is_some() {
             format!("{}/tasks/filter", self.base_url)
         } else {
             format!("{}/tasks", self.base_url)
@@ -59,8 +68,29 @@ impl TodoistClient {
             .get(&endpoint)
             .header("Authorization", self.get_auth_header());
 
-        // Use 'query' parameter name for filter endpoint
-        if let Some(filter_str) = filter {
+        if uses_completed_filter {
+            // For completed tasks, we need since/until dates
+            // Parse the filter to extract date range if provided
+            // For now, use today's date range
+            let today = chrono::Utc::now().format("%Y-%m-%d").to_string();
+            request = request.query(&[("since", format!("{}T00:00:00Z", today))]);
+            request = request.query(&[("until", format!("{}T23:59:59Z", today))]);
+
+            // If filter contains additional conditions, use filter_query parameter
+            if let Some(filter_str) = &filter {
+                // Remove "completed" part and use the rest as filter_query
+                let filter_query = filter_str
+                    .replace("completed today", "")
+                    .replace("completed", "")
+                    .trim()
+                    .to_string();
+
+                if !filter_query.is_empty() {
+                    request = request.query(&[("filter_query", &filter_query)]);
+                }
+            }
+        } else if let Some(filter_str) = filter {
+            // Use 'query' parameter name for filter endpoint
             request = request.query(&[("query", &filter_str)]);
         }
 
@@ -73,9 +103,25 @@ impl TodoistClient {
             return Err(TodoError::Http(status.as_u16(), response_text));
         }
 
-        let tasks_response: TasksResponse = serde_json::from_str(&response_text)
-            .map_err(|e| TodoError::Api(format!("Failed to parse tasks response: {}\nResponse: {}", e, response_text)))?;
-        Ok(self.enrich_tasks(tasks_response.results).await)
+        // Parse response - completed endpoint uses "items", others use "results"
+        let tasks = if uses_completed_filter {
+            let completed_response: serde_json::Value = serde_json::from_str(&response_text)
+                .map_err(|e| TodoError::Api(format!("Failed to parse completed tasks response: {}\nResponse: {}", e, response_text)))?;
+
+            // Extract items array
+            completed_response["items"]
+                .as_array()
+                .ok_or_else(|| TodoError::Api("Missing 'items' in completed tasks response".to_string()))?
+                .iter()
+                .filter_map(|v| serde_json::from_value(v.clone()).ok())
+                .collect()
+        } else {
+            let tasks_response: TasksResponse = serde_json::from_str(&response_text)
+                .map_err(|e| TodoError::Api(format!("Failed to parse tasks response: {}\nResponse: {}", e, response_text)))?;
+            tasks_response.results
+        };
+
+        Ok(self.enrich_tasks(tasks).await)
     }
 
     async fn enrich_tasks(&self, tasks: Vec<Task>) -> Vec<TaskOutput> {
@@ -553,13 +599,13 @@ mod tests {
     async fn test_priority_filter_works() {
         let client = TodoistClient::new(get_test_token());
 
-        // Create a priority 4 task
+        // Create a priority 4 task (lowest priority in API)
         let task_p4 = client
             .create_task("Test priority filter P4", None, None, Some(4), None)
             .await
             .unwrap();
 
-        // Create a priority 1 task
+        // Create a priority 1 task (highest priority in API)
         let task_p1 = client
             .create_task("Test priority filter P1", None, None, Some(1), None)
             .await
@@ -568,12 +614,15 @@ mod tests {
         // Wait for API to process
         tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
 
-        // Filter by priority 4
-        let tasks = client.get_tasks(Some("priority:4".to_string())).await.unwrap();
+        // Filter by priority 1 in filter language (returns API priority 4 tasks - lowest)
+        // Note: Filter priority values are inverted from API priority values!
+        // API priority 1 (highest) = Filter priority 4
+        // API priority 4 (lowest) = Filter priority 1
+        let tasks = client.get_tasks(Some("priority:1".to_string())).await.unwrap();
 
-        // Verify all returned tasks have priority 4
+        // Verify all returned tasks have API priority 4 (lowest)
         for task in &tasks {
-            assert_eq!(task.priority, 4, "Priority filter should only return priority 4 tasks");
+            assert_eq!(task.priority, 4, "Filter priority:1 should return API priority 4 tasks (lowest)");
         }
 
         // Cleanup
@@ -587,7 +636,7 @@ mod tests {
         use crate::{Formattable, OutputFormat};
         let client = TodoistClient::new(get_test_token());
 
-        // Create a task
+        // Create and complete a task
         let task = client
             .create_task("Test completed status display", None, None, None, None)
             .await
@@ -596,10 +645,10 @@ mod tests {
         // Complete it
         client.complete_task(&task.id).await.unwrap();
 
-        // Wait for API to process
-        tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
+        // Wait for API to process completed tasks
+        tokio::time::sleep(tokio::time::Duration::from_secs(3)).await;
 
-        // Try to get completed tasks
+        // Get completed tasks using the completed endpoint
         let tasks = client.get_tasks(Some("completed today".to_string())).await.unwrap();
 
         // Verify the checkbox shows [x] for completed tasks
@@ -610,8 +659,14 @@ mod tests {
 
         // Assertions
         if !tasks.is_empty() {
+            // Verify at least one task is marked as completed
+            let has_completed = tasks.iter().any(|t| t.is_completed);
+            assert!(has_completed, "Should have at least one completed task");
+
+            // Verify checklist format shows [x]
             assert!(output.contains("[x]"), "Completed tasks should show [x] in checklist format");
         }
+        // If tasks is empty, the test passes but we can't verify the format
     }
 
     #[tokio::test]
