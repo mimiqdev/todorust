@@ -4,12 +4,17 @@ use todorust::{
     api::TodoistClient,
     config::{init_config, load_config},
     error::TodoError,
+    Formattable,
+    OutputFormat,
 };
 
 #[derive(Parser)]
 #[command(name = "todorust")]
-#[command(about = "CLI tool for Todoist API", long_about = None)]
+#[command(author, version, about, long_about = None)]
 struct Cli {
+    #[arg(long, short, global = true, default_value = "json")]
+    format: OutputFormat,
+
     #[command(subcommand)]
     command: Commands,
 }
@@ -20,11 +25,19 @@ enum Commands {
     Tasks {
         #[arg(long)]
         filter: Option<String>,
+        #[arg(long, short)]
+        format: Option<OutputFormat>,
     },
     /// Get all projects
-    Projects,
+    Projects {
+        #[arg(long, short)]
+        format: Option<OutputFormat>,
+    },
     /// Get custom filters
-    Filters,
+    Filters {
+        #[arg(long, short)]
+        format: Option<OutputFormat>,
+    },
     /// Create a new task
     Create {
         #[arg(long)]
@@ -35,6 +48,8 @@ enum Commands {
         due_date: Option<String>,
         #[arg(long)]
         priority: Option<u8>,
+        #[arg(long, short)]
+        format: Option<OutputFormat>,
     },
     /// Complete a task
     Complete {
@@ -99,24 +114,34 @@ async fn main() {
         let client = TodoistClient::new(config.api_token);
 
         match cli.command {
-            Commands::Tasks { filter } => {
+            Commands::Tasks { filter, format } => {
+                let output_format = format.unwrap_or(cli.format);
                 let tasks = client.get_tasks(filter).await?;
-                println!("{}", to_string_pretty(&tasks)?);
+                let output = tasks.format(&output_format);
+                println!("{}", output);
             }
-            Commands::Projects => {
+            Commands::Projects { format } => {
+                let output_format = format.unwrap_or(cli.format);
                 let projects = client.get_projects().await?;
-                println!("{}", to_string_pretty(&projects)?);
+                // TODO: Implement project formatting
+                let output = serde_json::to_string_pretty(&projects)?;
+                println!("{}", output);
             }
-            Commands::Filters => {
+            Commands::Filters { format } => {
+                let output_format = format.unwrap_or(cli.format);
                 let filters = client.get_filters().await?;
-                println!("{}", to_string_pretty(&filters)?);
+                // TODO: Implement filter formatting
+                let output = serde_json::to_string_pretty(&filters)?;
+                println!("{}", output);
             }
             Commands::Create {
                 content,
                 project_id,
                 due_date,
                 priority,
+                format,
             } => {
+                let output_format = format.unwrap_or(cli.format);
                 if content.trim().is_empty() {
                     return Err(TodoError::InvalidInput(
                         "Task content cannot be empty".to_string(),
@@ -134,7 +159,9 @@ async fn main() {
                 let task = client
                     .create_task(&content, project_id, due_date, priority)
                     .await?;
-                println!("{}", to_string_pretty(&task)?);
+                // For single task, wrap in vec for formatting
+                let output = vec![task].format(&output_format);
+                println!("{}", output);
             }
             Commands::Complete { task_id } => {
                 client.complete_task(&task_id).await?;
@@ -163,18 +190,36 @@ mod tests {
     fn test_cli_parsing() {
         let args = vec!["todorust", "tasks"];
         let cli = Cli::try_parse_from(args).unwrap();
-        assert!(matches!(cli.command, Commands::Tasks { filter: None }));
+        assert!(matches!(cli.command, Commands::Tasks { filter: None, .. }));
     }
 
     #[test]
     fn test_cli_with_filter() {
         let args = vec!["todorust", "tasks", "--filter", "project:Work"];
         let cli = Cli::try_parse_from(args).unwrap();
-        if let Commands::Tasks { filter } = cli.command {
+        if let Commands::Tasks { filter, .. } = cli.command {
             assert_eq!(filter, Some("project:Work".to_string()));
         } else {
             panic!("Expected Tasks command");
         }
+    }
+
+    #[test]
+    fn test_cli_with_format() {
+        let args = vec!["todorust", "tasks", "--format", "checklist"];
+        let cli = Cli::try_parse_from(args).unwrap();
+        if let Commands::Tasks { format, .. } = cli.command {
+            assert_eq!(format, Some(OutputFormat::Checklist));
+        } else {
+            panic!("Expected Tasks command with format");
+        }
+    }
+
+    #[test]
+    fn test_global_format() {
+        let args = vec!["todorust", "--format", "structured", "tasks"];
+        let cli = Cli::try_parse_from(args).unwrap();
+        assert_eq!(cli.format, OutputFormat::Structured);
     }
 
     #[test]
