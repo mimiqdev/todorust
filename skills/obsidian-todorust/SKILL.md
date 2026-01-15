@@ -1,3 +1,8 @@
+---
+name: obsidian-todorust
+description: Data retrieval skill for Todoist tasks and projects using todorust CLI. Provides structured JSON data from Todoist for report generation in Obsidian. Use when skills need to: (1) Fetch completed tasks by date range for daily/weekly reports, (2) Query tasks by project, priority, or custom filters, (3) Get project lists and metadata, (4) Parse todorust JSON output for integration with Obsidian workflows
+---
+
 # Obsidian Todoist Integration
 
 Data retrieval skill for Todoist task and project information using todorust CLI. Use when other skills (daily notes, weekly reports, etc.) need to fetch structured task/project data from Todoist for report generation or analysis.
