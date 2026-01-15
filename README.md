@@ -28,14 +28,59 @@ Get your token from: https://todoist.com/app/settings/integrations
 
 ## Usage
 
+### Output Formats
+
+Todorust supports multiple output formats via the `--format` parameter:
+
+**JSON (default):**
+```bash
+todorust tasks
+todorust tasks --format json
+```
+
+**Markdown Checklist:**
+```bash
+todorust tasks --format checklist
+todorust tasks --filter 'completed today' --format checklist
+```
+
+Output:
+```markdown
+- [x] Complete proposal (Work)
+- [ ] Review docs (Work)
+- [x] Buy groceries (Personal)
+```
+
+**Structured Markdown (by project):**
+```bash
+todorust tasks --format structured
+todorust tasks --filter 'completed within "7 days"' --format structured
+```
+
+Output:
+```markdown
+## Personal
+
+- [x] Buy groceries
+- [ ] Pay bills (Priority: 2)
+
+## Work
+
+- [x] Complete proposal (Priority: 4)
+- [ ] Review docs (Priority: 3)
+```
+
 ### Get Tasks
 
 ```bash
-# Get all tasks
+# Get all tasks (JSON)
 todorust tasks
 
-# Filter tasks
-todorust tasks --filter "project:Work & due within 7 days"
+# Get tasks as checklist
+todorust tasks --format checklist
+
+# Filter with custom format
+todorust tasks --filter "project:Work" --format structured
 ```
 
 ### Get Projects
