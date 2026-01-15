@@ -1,6 +1,6 @@
 use reqwest::Client as HttpClient;
 
-use crate::models::{Project, Task, TaskOutput};
+use crate::models::{Filter, Project, SyncResponse, Task, TaskOutput};
 
 pub struct TodoistClient {
     token: String,
@@ -92,6 +92,28 @@ impl TodoistClient {
             })
             .collect()
     }
+
+    pub async fn get_filters(&self) -> Result<Vec<Filter>, crate::error::TodoError> {
+        let response = self
+            .http
+            .post(format!("{}/sync", self.base_url))
+            .header("Authorization", self.get_auth_header())
+            .json(&serde_json::json!({
+                "resource_types": ["filters"]
+            }))
+            .send()
+            .await?;
+
+        let status = response.status();
+
+        if status.is_success() {
+            let sync_data: SyncResponse = response.json().await?;
+            Ok(sync_data.filters)
+        } else {
+            let error_text = response.text().await.unwrap_or_else(|_| "Unknown error".to_string());
+            Err(crate::error::TodoError::Http(status.as_u16(), error_text))
+        }
+    }
 }
 
 #[cfg(test)]
@@ -152,6 +174,19 @@ mod tests {
         assert_eq!(task.content, "Buy milk");
     }
 
+    #[test]
+    fn test_filter_deserialization() {
+        let json = r#"{
+            "id": "789",
+            "name": "This Week",
+            "query": "due within \"7 days of today\""
+        }"#;
+
+        let filter: crate::models::Filter = serde_json::from_str(json).unwrap();
+        assert_eq!(filter.id, "789");
+        assert_eq!(filter.name, "This Week");
+    }
+
     #[tokio::test]
     #[ignore]
     async fn test_get_projects_real() {
@@ -167,5 +202,13 @@ mod tests {
         let client = TodoistClient::new(std::env::var("TODOIST_TOKEN").expect("TODOIST_TOKEN env var"));
         let tasks = client.get_tasks(None).await.unwrap();
         println!("Found {} tasks", tasks.len());
+    }
+
+    #[tokio::test]
+    #[ignore]
+    async fn test_get_filters_real() {
+        let client = TodoistClient::new(std::env::var("TODOIST_TOKEN").expect("TODOIST_TOKEN env var"));
+        let filters = client.get_filters().await.unwrap();
+        println!("Found {} filters", filters.len());
     }
 }

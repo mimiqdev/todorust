@@ -45,3 +45,15 @@ pub struct TaskOutput {
     pub priority: u8,
     pub labels: Vec<String>,
 }
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Filter {
+    pub id: String,
+    pub name: String,
+    pub query: String,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct SyncResponse {
+    pub filters: Vec<Filter>,
+}
