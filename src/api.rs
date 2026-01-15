@@ -36,12 +36,18 @@ impl TodoistClient {
             let projects = response.json::<Vec<Project>>().await?;
             Ok(projects)
         } else {
-            let error_text = response.text().await.unwrap_or_else(|_| "Unknown error".to_string());
+            let error_text = response
+                .text()
+                .await
+                .unwrap_or_else(|_| "Unknown error".to_string());
             Err(crate::error::TodoError::Http(status.as_u16(), error_text))
         }
     }
 
-    pub async fn get_tasks(&self, filter: Option<String>) -> Result<Vec<TaskOutput>, crate::error::TodoError> {
+    pub async fn get_tasks(
+        &self,
+        filter: Option<String>,
+    ) -> Result<Vec<TaskOutput>, crate::error::TodoError> {
         let mut request = self
             .http
             .get(format!("{}/tasks", self.base_url))
@@ -58,16 +64,16 @@ impl TodoistClient {
             let tasks = response.json::<Vec<Task>>().await?;
             Ok(self.enrich_tasks(tasks).await)
         } else {
-            let error_text = response.text().await.unwrap_or_else(|_| "Unknown error".to_string());
+            let error_text = response
+                .text()
+                .await
+                .unwrap_or_else(|_| "Unknown error".to_string());
             Err(crate::error::TodoError::Http(status.as_u16(), error_text))
         }
     }
 
     async fn enrich_tasks(&self, tasks: Vec<Task>) -> Vec<TaskOutput> {
-        let projects = match self.get_projects().await {
-            Ok(p) => p,
-            Err(_) => Vec::new(),
-        };
+        let projects = self.get_projects().await.unwrap_or_default();
 
         tasks
             .into_iter()
@@ -111,7 +117,10 @@ impl TodoistClient {
             let sync_data: SyncResponse = response.json().await?;
             Ok(sync_data.filters)
         } else {
-            let error_text = response.text().await.unwrap_or_else(|_| "Unknown error".to_string());
+            let error_text = response
+                .text()
+                .await
+                .unwrap_or_else(|_| "Unknown error".to_string());
             Err(crate::error::TodoError::Http(status.as_u16(), error_text))
         }
     }
@@ -145,11 +154,15 @@ impl TodoistClient {
             let enriched = self.enrich_tasks(vec![task]).await;
             Ok(enriched.into_iter().next().unwrap())
         } else {
-            let error_text = response.text().await.unwrap_or_else(|_| "Unknown error".to_string());
+            let error_text = response
+                .text()
+                .await
+                .unwrap_or_else(|_| "Unknown error".to_string());
             Err(crate::error::TodoError::Http(status.as_u16(), error_text))
         }
     }
 
+    #[allow(dead_code)]
     async fn delete_task(&self, task_id: &str) -> Result<(), crate::error::TodoError> {
         let response = self
             .http
@@ -163,7 +176,10 @@ impl TodoistClient {
         if status.is_success() || status.as_u16() == 404 {
             Ok(())
         } else {
-            let error_text = response.text().await.unwrap_or_else(|_| "Unknown error".to_string());
+            let error_text = response
+                .text()
+                .await
+                .unwrap_or_else(|_| "Unknown error".to_string());
             Err(crate::error::TodoError::Http(status.as_u16(), error_text))
         }
     }
@@ -181,7 +197,10 @@ impl TodoistClient {
         if status.is_success() || status.as_u16() == 204 {
             Ok(())
         } else {
-            let error_text = response.text().await.unwrap_or_else(|_| "Unknown error".to_string());
+            let error_text = response
+                .text()
+                .await
+                .unwrap_or_else(|_| "Unknown error".to_string());
             Err(crate::error::TodoError::Http(status.as_u16(), error_text))
         }
     }
@@ -199,7 +218,10 @@ impl TodoistClient {
         if status.is_success() || status.as_u16() == 204 {
             Ok(())
         } else {
-            let error_text = response.text().await.unwrap_or_else(|_| "Unknown error".to_string());
+            let error_text = response
+                .text()
+                .await
+                .unwrap_or_else(|_| "Unknown error".to_string());
             Err(crate::error::TodoError::Http(status.as_u16(), error_text))
         }
     }
@@ -290,7 +312,8 @@ mod tests {
     #[tokio::test]
     #[ignore]
     async fn test_get_projects_real() {
-        let client = TodoistClient::new(std::env::var("TODOIST_TOKEN").expect("TODOIST_TOKEN env var"));
+        let client =
+            TodoistClient::new(std::env::var("TODOIST_TOKEN").expect("TODOIST_TOKEN env var"));
         let projects = client.get_projects().await.unwrap();
         assert!(!projects.is_empty());
         println!("Found {} projects", projects.len());
@@ -299,7 +322,8 @@ mod tests {
     #[tokio::test]
     #[ignore]
     async fn test_get_tasks_real() {
-        let client = TodoistClient::new(std::env::var("TODOIST_TOKEN").expect("TODOIST_TOKEN env var"));
+        let client =
+            TodoistClient::new(std::env::var("TODOIST_TOKEN").expect("TODOIST_TOKEN env var"));
         let tasks = client.get_tasks(None).await.unwrap();
         println!("Found {} tasks", tasks.len());
     }
@@ -307,7 +331,8 @@ mod tests {
     #[tokio::test]
     #[ignore]
     async fn test_get_filters_real() {
-        let client = TodoistClient::new(std::env::var("TODOIST_TOKEN").expect("TODOIST_TOKEN env var"));
+        let client =
+            TodoistClient::new(std::env::var("TODOIST_TOKEN").expect("TODOIST_TOKEN env var"));
         let filters = client.get_filters().await.unwrap();
         println!("Found {} filters", filters.len());
     }
@@ -315,7 +340,8 @@ mod tests {
     #[tokio::test]
     #[ignore]
     async fn test_create_task_real() {
-        let client = TodoistClient::new(std::env::var("TODOIST_TOKEN").expect("TODOIST_TOKEN env var"));
+        let client =
+            TodoistClient::new(std::env::var("TODOIST_TOKEN").expect("TODOIST_TOKEN env var"));
 
         let task_output = client
             .create_task("Test task from integration test", None, None, None)
@@ -331,7 +357,8 @@ mod tests {
     #[tokio::test]
     #[ignore]
     async fn test_complete_task_real() {
-        let client = TodoistClient::new(std::env::var("TODOIST_TOKEN").expect("TODOIST_TOKEN env var"));
+        let client =
+            TodoistClient::new(std::env::var("TODOIST_TOKEN").expect("TODOIST_TOKEN env var"));
 
         // Create a task first
         let task = client
@@ -358,7 +385,8 @@ mod tests {
     #[tokio::test]
     #[ignore]
     async fn test_reopen_task_real() {
-        let client = TodoistClient::new(std::env::var("TODOIST_TOKEN").expect("TODOIST_TOKEN env var"));
+        let client =
+            TodoistClient::new(std::env::var("TODOIST_TOKEN").expect("TODOIST_TOKEN env var"));
 
         // Create and complete a task
         let task = client

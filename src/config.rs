@@ -1,4 +1,4 @@
-use crate::error::{TodoError, Result};
+use crate::error::{Result, TodoError};
 use serde::{Deserialize, Serialize};
 use std::fs;
 

@@ -1,6 +1,10 @@
 use clap::{Parser, Subcommand};
-use todorust::{api::TodoistClient, config::{load_config, init_config}, error::TodoError};
 use serde_json::to_string_pretty;
+use todorust::{
+    api::TodoistClient,
+    config::{init_config, load_config},
+    error::TodoError,
+};
 
 #[derive(Parser)]
 #[command(name = "todorust")]
@@ -107,20 +111,29 @@ async fn main() {
                 let filters = client.get_filters().await?;
                 println!("{}", to_string_pretty(&filters)?);
             }
-            Commands::Create { content, project_id, due_date, priority } => {
+            Commands::Create {
+                content,
+                project_id,
+                due_date,
+                priority,
+            } => {
                 if content.trim().is_empty() {
-                    return Err(TodoError::InvalidInput("Task content cannot be empty".to_string()));
+                    return Err(TodoError::InvalidInput(
+                        "Task content cannot be empty".to_string(),
+                    ));
                 }
 
                 if let Some(p) = priority {
                     if !validate_priority(p) {
                         return Err(TodoError::InvalidInput(
-                            "Priority must be between 1 and 4".to_string()
+                            "Priority must be between 1 and 4".to_string(),
                         ));
                     }
                 }
 
-                let task = client.create_task(&content, project_id, due_date, priority).await?;
+                let task = client
+                    .create_task(&content, project_id, due_date, priority)
+                    .await?;
                 println!("{}", to_string_pretty(&task)?);
             }
             Commands::Complete { task_id } => {
