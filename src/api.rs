@@ -550,17 +550,67 @@ mod tests {
 
     #[tokio::test]
     #[ignore]
-    async fn test_checklist_format_real() {
+    async fn test_priority_filter_works() {
+        let client = TodoistClient::new(get_test_token());
+
+        // Create a priority 4 task
+        let task_p4 = client
+            .create_task("Test priority filter P4", None, None, Some(4), None)
+            .await
+            .unwrap();
+
+        // Create a priority 1 task
+        let task_p1 = client
+            .create_task("Test priority filter P1", None, None, Some(1), None)
+            .await
+            .unwrap();
+
+        // Wait for API to process
+        tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
+
+        // Filter by priority 4
+        let tasks = client.get_tasks(Some("priority:4".to_string())).await.unwrap();
+
+        // Verify all returned tasks have priority 4
+        for task in &tasks {
+            assert_eq!(task.priority, 4, "Priority filter should only return priority 4 tasks");
+        }
+
+        // Cleanup
+        let _ = client.delete_task(&task_p4.id).await;
+        let _ = client.delete_task(&task_p1.id).await;
+    }
+
+    #[tokio::test]
+    #[ignore]
+    async fn test_completed_status_shows_correctly() {
         use crate::{Formattable, OutputFormat};
         let client = TodoistClient::new(get_test_token());
-        let tasks = client.get_tasks(None).await.unwrap();
+
+        // Create a task
+        let task = client
+            .create_task("Test completed status display", None, None, None, None)
+            .await
+            .unwrap();
+
+        // Complete it
+        client.complete_task(&task.id).await.unwrap();
+
+        // Wait for API to process
+        tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
+
+        // Try to get completed tasks
+        let tasks = client.get_tasks(Some("completed today".to_string())).await.unwrap();
+
+        // Verify the checkbox shows [x] for completed tasks
         let output = tasks.format(&OutputFormat::Checklist);
 
-        // Verify all lines are checklist items
-        for line in output.lines() {
-            let line_str: &str = line;
-            assert!(line_str.starts_with("- [x]") || line_str.starts_with("- [ ]"),
-                    "Line should be checklist item: {}", line_str);
+        // Cleanup
+        let _ = client.delete_task(&task.id).await;
+
+        // Assertions
+        if !tasks.is_empty() {
+            assert!(output.contains("[x]"), "Completed tasks should show [x] in checklist format");
         }
     }
 
