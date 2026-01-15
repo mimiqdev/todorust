@@ -49,6 +49,10 @@ enum Commands {
     },
 }
 
+fn validate_priority(priority: u8) -> bool {
+    (1..=4).contains(&priority)
+}
+
 fn handle_error(error: TodoError) {
     match &error {
         TodoError::ConfigNotFound => {
@@ -104,6 +108,18 @@ async fn main() {
                 println!("{}", to_string_pretty(&filters)?);
             }
             Commands::Create { content, project_id, due_date, priority } => {
+                if content.trim().is_empty() {
+                    return Err(TodoError::InvalidInput("Task content cannot be empty".to_string()));
+                }
+
+                if let Some(p) = priority {
+                    if !validate_priority(p) {
+                        return Err(TodoError::InvalidInput(
+                            "Priority must be between 1 and 4".to_string()
+                        ));
+                    }
+                }
+
                 let task = client.create_task(&content, project_id, due_date, priority).await?;
                 println!("{}", to_string_pretty(&task)?);
             }
@@ -146,5 +162,13 @@ mod tests {
         } else {
             panic!("Expected Tasks command");
         }
+    }
+
+    #[test]
+    fn test_priority_validation() {
+        assert!(validate_priority(1));
+        assert!(validate_priority(4));
+        assert!(!validate_priority(0));
+        assert!(!validate_priority(5));
     }
 }
