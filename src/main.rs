@@ -1,4 +1,6 @@
 use clap::{Parser, Subcommand};
+use todorust::{api::TodoistClient, config::load_config, error::TodoError};
+use serde_json::to_string_pretty;
 
 #[derive(Parser)]
 #[command(name = "todorust")]
@@ -42,28 +44,62 @@ enum Commands {
     },
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_cli_parsing() {
+        let args = vec!["todorust", "tasks"];
+        let cli = Cli::try_parse_from(args).unwrap();
+        assert!(matches!(cli.command, Commands::Tasks { filter: None }));
+    }
+
+    #[test]
+    fn test_cli_with_filter() {
+        let args = vec!["todorust", "tasks", "--filter", "project:Work"];
+        let cli = Cli::try_parse_from(args).unwrap();
+        if let Commands::Tasks { filter } = cli.command {
+            assert_eq!(filter, Some("project:Work".to_string()));
+        } else {
+            panic!("Expected Tasks command");
+        }
+    }
+}
+
 #[tokio::main]
-async fn main() {
+async fn main() -> Result<(), TodoError> {
     let cli = Cli::parse();
+
+    let config = load_config()?;
+    let client = TodoistClient::new(config.api_token);
 
     match cli.command {
         Commands::Tasks { filter } => {
-            println!("Get tasks with filter: {:?}", filter);
+            let tasks = client.get_tasks(filter).await?;
+            println!("{}", to_string_pretty(&tasks)?);
         }
         Commands::Projects => {
-            println!("Get projects");
+            let projects = client.get_projects().await?;
+            println!("{}", to_string_pretty(&projects)?);
         }
         Commands::Filters => {
-            println!("Get filters");
+            let filters = client.get_filters().await?;
+            println!("{}", to_string_pretty(&filters)?);
         }
         Commands::Create { content, project_id, due_date, priority } => {
-            println!("Create task: {} {:?} {:?} {:?}", content, project_id, due_date, priority);
+            let task = client.create_task(&content, project_id, due_date, priority).await?;
+            println!("{}", to_string_pretty(&task)?);
         }
         Commands::Complete { task_id } => {
-            println!("Complete task: {}", task_id);
+            client.complete_task(&task_id).await?;
+            println!("Task {} completed", task_id);
         }
         Commands::Reopen { task_id } => {
-            println!("Reopen task: {}", task_id);
+            client.reopen_task(&task_id).await?;
+            println!("Task {} reopened", task_id);
         }
     }
+
+    Ok(())
 }

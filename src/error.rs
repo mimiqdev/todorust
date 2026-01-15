@@ -15,4 +15,10 @@ pub enum TodoError {
     Http(u16, String),
 }
 
+impl From<serde_json::Error> for TodoError {
+    fn from(err: serde_json::Error) -> Self {
+        TodoError::Api(format!("JSON error: {}", err))
+    }
+}
+
 pub type Result<T> = std::result::Result<T, TodoError>;
