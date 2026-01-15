@@ -475,4 +475,41 @@ mod tests {
         // Cleanup
         let _ = client.delete_task(&task.id).await;
     }
+
+    #[tokio::test]
+    #[ignore]
+    async fn test_checklist_format_real() {
+        use crate::{Formattable, OutputFormat};
+        let client = TodoistClient::new(get_test_token());
+        let tasks = client.get_tasks(None).await.unwrap();
+        let output = tasks.format(&OutputFormat::Checklist);
+
+        // Verify all lines are checklist items
+        for line in output.lines() {
+            let line_str: &str = line;
+            assert!(line_str.starts_with("- [x]") || line_str.starts_with("- [ ]"),
+                    "Line should be checklist item: {}", line_str);
+        }
+    }
+
+    #[tokio::test]
+    #[ignore]
+    async fn test_structured_format_real() {
+        use crate::{Formattable, OutputFormat};
+        let client = TodoistClient::new(get_test_token());
+        let tasks = client.get_tasks(None).await.unwrap();
+        let output = tasks.format(&OutputFormat::Structured);
+
+        // Verify has project headings
+        assert!(output.contains("## ") || output.is_empty());
+
+        // Verify tasks under projects
+        for line in output.lines() {
+            let line_str: &str = line;
+            if line_str.starts_with("- ") {
+                assert!(line_str.contains("[x]") || line_str.contains("[ ]"),
+                        "Task line should have checkbox: {}", line_str);
+            }
+        }
+    }
 }
