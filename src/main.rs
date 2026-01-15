@@ -48,6 +48,8 @@ enum Commands {
         due_date: Option<String>,
         #[arg(long)]
         priority: Option<u8>,
+        #[arg(long)]
+        labels: Option<String>,
         #[arg(long, short)]
         format: Option<OutputFormat>,
     },
@@ -139,6 +141,7 @@ async fn main() {
                 project_id,
                 due_date,
                 priority,
+                labels,
                 format,
             } => {
                 let output_format = format.unwrap_or(cli.format);
@@ -156,8 +159,17 @@ async fn main() {
                     }
                 }
 
+                // Parse labels from comma-separated string
+                let labels_vec = labels.and_then(|l| {
+                    if l.is_empty() {
+                        None
+                    } else {
+                        Some(l.split(',').map(|s| s.trim().to_string()).collect())
+                    }
+                });
+
                 let task = client
-                    .create_task(&content, project_id, due_date, priority)
+                    .create_task(&content, project_id, due_date, priority, labels_vec)
                     .await?;
                 // For single task, wrap in vec for formatting
                 let output = vec![task].format(&output_format);

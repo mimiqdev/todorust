@@ -126,12 +126,14 @@ impl TodoistClient {
         project_id: Option<String>,
         due_date: Option<String>,
         priority: Option<u8>,
+        labels: Option<Vec<String>>,
     ) -> Result<TaskOutput, crate::error::TodoError> {
         let request_body = CreateTaskRequest {
             content: content.to_string(),
             project_id,
             due_string: due_date,
             priority,
+            labels,
         };
 
         let response = self
@@ -220,6 +222,8 @@ struct CreateTaskRequest {
     due_string: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     priority: Option<u8>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    labels: Option<Vec<String>>,
 }
 
 #[cfg(test)]
@@ -419,7 +423,7 @@ mod tests {
         let client = TodoistClient::new(get_test_token());
 
         let task_output = client
-            .create_task("Test task from integration test", None, None, None)
+            .create_task("Test task from integration test", None, None, None, None)
             .await
             .unwrap();
 
@@ -431,12 +435,36 @@ mod tests {
 
     #[tokio::test]
     #[ignore]
+    async fn test_create_task_with_labels_real() {
+        use crate::Formattable;
+        let client = TodoistClient::new(get_test_token());
+
+        let task = client
+            .create_task(
+                "Test task with labels",
+                None,
+                None,
+                None,
+                Some(vec!["test-label".to_string(), "urgent".to_string()]),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(task.content, "Test task with labels");
+        assert!(!task.labels.is_empty());
+
+        // Cleanup
+        let _ = client.delete_task(&task.id).await;
+    }
+
+    #[tokio::test]
+    #[ignore]
     async fn test_complete_task_real() {
         let client = TodoistClient::new(get_test_token());
 
         // Create a task first
         let task = client
-            .create_task("Test task for completion", None, None, None)
+            .create_task("Test task for completion", None, None, None, None)
             .await
             .unwrap();
 
@@ -457,7 +485,7 @@ mod tests {
 
         // Create and complete a task
         let task = client
-            .create_task("Test task for reopening", None, None, None)
+            .create_task("Test task for reopening", None, None, None, None)
             .await
             .unwrap();
         client.complete_task(&task.id).await.unwrap();
