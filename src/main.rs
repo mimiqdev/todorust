@@ -125,8 +125,7 @@ async fn main() {
             Commands::Projects { format } => {
                 let output_format = format.unwrap_or(cli.format);
                 let projects = client.get_projects().await?;
-                // TODO: Implement project formatting
-                let output = serde_json::to_string_pretty(&projects)?;
+                let output = projects.format(&output_format);
                 println!("{}", output);
             }
             Commands::Filters { format } => {

@@ -1,5 +1,5 @@
 use clap::ValueEnum;
-use crate::models::TaskOutput;
+use crate::models::{TaskOutput, Project};
 
 #[derive(Clone, Debug, PartialEq, ValueEnum)]
 pub enum OutputFormat {
@@ -66,6 +66,55 @@ fn format_structured(tasks: &[TaskOutput]) -> String {
                 .collect::<Vec<_>>()
                 .join("\n");
             format!("## {}\n\n{}", project, tasks_str)
+        })
+        .collect::<Vec<_>>()
+        .join("\n\n")
+}
+
+impl Formattable for Vec<Project> {
+    fn format(&self, format: &OutputFormat) -> String {
+        match format {
+            OutputFormat::Json => format_json_projects(self),
+            OutputFormat::Checklist => format_projects_checklist(self),
+            OutputFormat::Structured => format_projects_structured(self),
+        }
+    }
+}
+
+fn format_json_projects(projects: &[Project]) -> String {
+    serde_json::to_string_pretty(projects).unwrap_or_default()
+}
+
+fn format_projects_checklist(projects: &[Project]) -> String {
+    projects.iter()
+        .map(|project| {
+            let indicator = if project.is_favorite { "⭐ " } else { "" };
+            format!("- [ ] {}{}{}", indicator, project.name,
+                    if project.is_shared { " (shared)" } else { "" })
+        })
+        .collect::<Vec<_>>()
+        .join("\n")
+}
+
+fn format_projects_structured(projects: &[Project]) -> String {
+    projects.iter()
+        .map(|project| {
+            let meta = vec![
+                if project.is_favorite { Some("⭐ Favorite".to_string()) } else { None },
+                if project.is_shared { Some("👥 Shared".to_string()) } else { None },
+            ]
+            .into_iter()
+            .flatten()
+            .collect::<Vec<_>>()
+            .join(" | ");
+
+            format!(
+                "### {}\n\n**Color:** {}\n**ID:** {}\n{}",
+                project.name,
+                project.color,
+                project.id,
+                if meta.is_empty() { String::new() } else { format!("**Meta:** {}\n", meta) }
+            )
         })
         .collect::<Vec<_>>()
         .join("\n\n")
@@ -178,5 +227,60 @@ mod tests {
         assert!(output.contains("- [ ] Inbox Task"));
         // Priority 1 should not show
         assert!(!output.contains("(Priority:"));
+    }
+
+    #[test]
+    fn test_format_projects_checklist() {
+        let projects = vec![
+            Project {
+                id: "1".to_string(),
+                name: "Work".to_string(),
+                color: "blue".to_string(),
+                is_shared: false,
+                is_favorite: true,
+            },
+            Project {
+                id: "2".to_string(),
+                name: "Personal".to_string(),
+                color: "green".to_string(),
+                is_shared: true,
+                is_favorite: false,
+            },
+        ];
+
+        let output = projects.format(&OutputFormat::Checklist);
+        assert!(output.contains("- [ ] ⭐ Work"));
+        assert!(output.contains("- [ ] Personal (shared)"));
+    }
+
+    #[test]
+    fn test_format_projects_structured() {
+        let projects = vec![Project {
+            id: "1".to_string(),
+            name: "Work".to_string(),
+            color: "blue".to_string(),
+            is_shared: false,
+            is_favorite: true,
+        }];
+
+        let output = projects.format(&OutputFormat::Structured);
+        assert!(output.contains("### Work"));
+        assert!(output.contains("**Color:** blue"));
+        assert!(output.contains("⭐ Favorite"));
+    }
+
+    #[test]
+    fn test_format_projects_json() {
+        let projects = vec![Project {
+            id: "1".to_string(),
+            name: "Test".to_string(),
+            color: "red".to_string(),
+            is_shared: false,
+            is_favorite: false,
+        }];
+
+        let output = projects.format(&OutputFormat::Json);
+        assert!(output.contains("\"name\""));
+        assert!(output.contains("Test"));
     }
 }
