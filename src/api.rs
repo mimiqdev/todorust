@@ -1,4 +1,5 @@
 use reqwest::Client as HttpClient;
+use serde::Serialize;
 
 use crate::models::{Filter, Project, SyncResponse, Task, TaskOutput};
 
@@ -114,6 +115,69 @@ impl TodoistClient {
             Err(crate::error::TodoError::Http(status.as_u16(), error_text))
         }
     }
+
+    pub async fn create_task(
+        &self,
+        content: &str,
+        project_id: Option<String>,
+        due_date: Option<String>,
+        priority: Option<u8>,
+    ) -> Result<TaskOutput, crate::error::TodoError> {
+        let request_body = CreateTaskRequest {
+            content: content.to_string(),
+            project_id,
+            due_string: due_date,
+            priority,
+        };
+
+        let response = self
+            .http
+            .post(format!("{}/tasks", self.base_url))
+            .header("Authorization", self.get_auth_header())
+            .json(&request_body)
+            .send()
+            .await?;
+
+        let status = response.status();
+
+        if status.is_success() {
+            let task: Task = response.json().await?;
+            let enriched = self.enrich_tasks(vec![task]).await;
+            Ok(enriched.into_iter().next().unwrap())
+        } else {
+            let error_text = response.text().await.unwrap_or_else(|_| "Unknown error".to_string());
+            Err(crate::error::TodoError::Http(status.as_u16(), error_text))
+        }
+    }
+
+    async fn delete_task(&self, task_id: &str) -> Result<(), crate::error::TodoError> {
+        let response = self
+            .http
+            .delete(format!("{}/tasks/{}", self.base_url, task_id))
+            .header("Authorization", self.get_auth_header())
+            .send()
+            .await?;
+
+        let status = response.status();
+
+        if status.is_success() || status.as_u16() == 404 {
+            Ok(())
+        } else {
+            let error_text = response.text().await.unwrap_or_else(|_| "Unknown error".to_string());
+            Err(crate::error::TodoError::Http(status.as_u16(), error_text))
+        }
+    }
+}
+
+#[derive(Serialize)]
+struct CreateTaskRequest {
+    content: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    project_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    due_string: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    priority: Option<u8>,
 }
 
 #[cfg(test)]
@@ -210,5 +274,21 @@ mod tests {
         let client = TodoistClient::new(std::env::var("TODOIST_TOKEN").expect("TODOIST_TOKEN env var"));
         let filters = client.get_filters().await.unwrap();
         println!("Found {} filters", filters.len());
+    }
+
+    #[tokio::test]
+    #[ignore]
+    async fn test_create_task_real() {
+        let client = TodoistClient::new(std::env::var("TODOIST_TOKEN").expect("TODOIST_TOKEN env var"));
+
+        let task_output = client
+            .create_task("Test task from integration test", None, None, None)
+            .await
+            .unwrap();
+
+        assert_eq!(task_output.content, "Test task from integration test");
+
+        // Cleanup
+        let _ = client.delete_task(&task_output.id).await;
     }
 }
