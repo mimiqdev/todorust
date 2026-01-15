@@ -356,6 +356,41 @@ mod tests {
     }
 
     #[test]
+    fn test_task_deserialization_with_checked_field() {
+        // Test based on official API v1 response format
+        // which uses 'checked' field for completion status
+        let json = r#"{
+            "id": "123",
+            "content": "Task with checked field",
+            "checked": true,
+            "added_at": "2026-01-15T10:00:00Z",
+            "child_order": 1,
+            "priority": 4,
+            "labels": ["urgent"]
+        }"#;
+
+        let task: crate::models::Task = serde_json::from_str(json).unwrap();
+        assert_eq!(task.is_completed, true, "checked=true should map to is_completed=true");
+        assert_eq!(task.content, "Task with checked field");
+    }
+
+    #[test]
+    fn test_task_deserialization_checked_false() {
+        let json = r#"{
+            "id": "456",
+            "content": "Incomplete task",
+            "checked": false,
+            "added_at": "2026-01-15T10:00:00Z",
+            "child_order": 2,
+            "priority": 2,
+            "labels": []
+        }"#;
+
+        let task: crate::models::Task = serde_json::from_str(json).unwrap();
+        assert_eq!(task.is_completed, false, "checked=false should map to is_completed=false");
+    }
+
+    #[test]
     fn test_tasks_response_wrapper() {
         let json = r#"{
             "results": [
