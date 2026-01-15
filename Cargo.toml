@@ -1,11 +1,11 @@
 [package]
 name = "todorust"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2021"
 description = "CLI tool for Todoist API with optimized JSON output"
-authors = ["Your Name"]
+authors = ["MimikyuDev <mail@mimiq.dev>"]
 license = "MIT"
-repository = "https://github.com/yourusername/todorust"
+repository = "https://github.com/mimiqdev/todorust"
 readme = "README.md"
 
 [dependencies]
