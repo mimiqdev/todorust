@@ -1,5 +1,5 @@
 use clap::{Parser, Subcommand};
-use todorust::{api::TodoistClient, config::load_config, error::TodoError};
+use todorust::{api::TodoistClient, config::{load_config, init_config}, error::TodoError};
 use serde_json::to_string_pretty;
 
 #[derive(Parser)]
@@ -42,6 +42,11 @@ enum Commands {
         #[arg(long)]
         task_id: String,
     },
+    /// Initialize configuration
+    Init {
+        #[arg(long)]
+        api_token: String,
+    },
 }
 
 #[cfg(test)]
@@ -71,33 +76,42 @@ mod tests {
 async fn main() -> Result<(), TodoError> {
     let cli = Cli::parse();
 
-    let config = load_config()?;
-    let client = TodoistClient::new(config.api_token);
-
     match cli.command {
-        Commands::Tasks { filter } => {
-            let tasks = client.get_tasks(filter).await?;
-            println!("{}", to_string_pretty(&tasks)?);
+        Commands::Init { api_token } => {
+            init_config(&api_token)?;
+            println!("Configuration initialized successfully!");
         }
-        Commands::Projects => {
-            let projects = client.get_projects().await?;
-            println!("{}", to_string_pretty(&projects)?);
-        }
-        Commands::Filters => {
-            let filters = client.get_filters().await?;
-            println!("{}", to_string_pretty(&filters)?);
-        }
-        Commands::Create { content, project_id, due_date, priority } => {
-            let task = client.create_task(&content, project_id, due_date, priority).await?;
-            println!("{}", to_string_pretty(&task)?);
-        }
-        Commands::Complete { task_id } => {
-            client.complete_task(&task_id).await?;
-            println!("Task {} completed", task_id);
-        }
-        Commands::Reopen { task_id } => {
-            client.reopen_task(&task_id).await?;
-            println!("Task {} reopened", task_id);
+        _ => {
+            let config = load_config()?;
+            let client = TodoistClient::new(config.api_token);
+
+            match cli.command {
+                Commands::Tasks { filter } => {
+                    let tasks = client.get_tasks(filter).await?;
+                    println!("{}", to_string_pretty(&tasks)?);
+                }
+                Commands::Projects => {
+                    let projects = client.get_projects().await?;
+                    println!("{}", to_string_pretty(&projects)?);
+                }
+                Commands::Filters => {
+                    let filters = client.get_filters().await?;
+                    println!("{}", to_string_pretty(&filters)?);
+                }
+                Commands::Create { content, project_id, due_date, priority } => {
+                    let task = client.create_task(&content, project_id, due_date, priority).await?;
+                    println!("{}", to_string_pretty(&task)?);
+                }
+                Commands::Complete { task_id } => {
+                    client.complete_task(&task_id).await?;
+                    println!("Task {} completed", task_id);
+                }
+                Commands::Reopen { task_id } => {
+                    client.reopen_task(&task_id).await?;
+                    println!("Task {} reopened", task_id);
+                }
+                Commands::Init { .. } => unreachable!(),
+            }
         }
     }
 
