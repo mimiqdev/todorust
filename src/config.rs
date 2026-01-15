@@ -14,11 +14,14 @@ pub fn load_config() -> Result<Config> {
 
     let config_path = config_dir.join("config.toml");
 
+    if !config_path.exists() {
+        return Err(TodoError::ConfigNotFound);
+    }
+
     let content = fs::read_to_string(&config_path)
         .map_err(|e| TodoError::Config(format!("Cannot read config: {}", e)))?;
 
-    let config: Config = toml::from_str(&content)
-        .map_err(|e| TodoError::Config(format!("Cannot parse config: {}", e)))?;
+    let config: Config = toml::from_str(&content)?;
 
     Ok(config)
 }

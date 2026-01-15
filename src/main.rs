@@ -49,6 +49,83 @@ enum Commands {
     },
 }
 
+fn handle_error(error: TodoError) {
+    match &error {
+        TodoError::ConfigNotFound => {
+            eprintln!("Error: Configuration not found.");
+            eprintln!("Run: todorust init --api-token YOUR_TOKEN");
+        }
+        TodoError::Http(status, msg) => {
+            eprintln!("Error: HTTP {} - {}", status, msg);
+        }
+        TodoError::Api(msg) => {
+            eprintln!("API Error: {}", msg);
+        }
+        TodoError::Request(e) => {
+            eprintln!("Request Error: {}", e);
+        }
+        TodoError::Config(msg) => {
+            eprintln!("Config Error: {}", msg);
+        }
+        TodoError::InvalidInput(msg) => {
+            eprintln!("Invalid Input: {}", msg);
+        }
+    }
+    std::process::exit(1);
+}
+
+#[tokio::main]
+async fn main() {
+    let cli = Cli::parse();
+
+    if let Commands::Init { api_token } = cli.command {
+        if let Err(e) = init_config(&api_token) {
+            handle_error(e);
+        }
+        println!("Configuration initialized successfully!");
+        return;
+    }
+
+    let result = async {
+        let config = load_config()?;
+        let client = TodoistClient::new(config.api_token);
+
+        match cli.command {
+            Commands::Tasks { filter } => {
+                let tasks = client.get_tasks(filter).await?;
+                println!("{}", to_string_pretty(&tasks)?);
+            }
+            Commands::Projects => {
+                let projects = client.get_projects().await?;
+                println!("{}", to_string_pretty(&projects)?);
+            }
+            Commands::Filters => {
+                let filters = client.get_filters().await?;
+                println!("{}", to_string_pretty(&filters)?);
+            }
+            Commands::Create { content, project_id, due_date, priority } => {
+                let task = client.create_task(&content, project_id, due_date, priority).await?;
+                println!("{}", to_string_pretty(&task)?);
+            }
+            Commands::Complete { task_id } => {
+                client.complete_task(&task_id).await?;
+                println!("Task {} completed", task_id);
+            }
+            Commands::Reopen { task_id } => {
+                client.reopen_task(&task_id).await?;
+                println!("Task {} reopened", task_id);
+            }
+            Commands::Init { .. } => unreachable!(),
+        }
+
+        Ok::<(), TodoError>(())
+    };
+
+    if let Err(e) = result.await {
+        handle_error(e);
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -70,50 +147,4 @@ mod tests {
             panic!("Expected Tasks command");
         }
     }
-}
-
-#[tokio::main]
-async fn main() -> Result<(), TodoError> {
-    let cli = Cli::parse();
-
-    match cli.command {
-        Commands::Init { api_token } => {
-            init_config(&api_token)?;
-            println!("Configuration initialized successfully!");
-        }
-        _ => {
-            let config = load_config()?;
-            let client = TodoistClient::new(config.api_token);
-
-            match cli.command {
-                Commands::Tasks { filter } => {
-                    let tasks = client.get_tasks(filter).await?;
-                    println!("{}", to_string_pretty(&tasks)?);
-                }
-                Commands::Projects => {
-                    let projects = client.get_projects().await?;
-                    println!("{}", to_string_pretty(&projects)?);
-                }
-                Commands::Filters => {
-                    let filters = client.get_filters().await?;
-                    println!("{}", to_string_pretty(&filters)?);
-                }
-                Commands::Create { content, project_id, due_date, priority } => {
-                    let task = client.create_task(&content, project_id, due_date, priority).await?;
-                    println!("{}", to_string_pretty(&task)?);
-                }
-                Commands::Complete { task_id } => {
-                    client.complete_task(&task_id).await?;
-                    println!("Task {} completed", task_id);
-                }
-                Commands::Reopen { task_id } => {
-                    client.reopen_task(&task_id).await?;
-                    println!("Task {} reopened", task_id);
-                }
-                Commands::Init { .. } => unreachable!(),
-            }
-        }
-    }
-
-    Ok(())
 }
