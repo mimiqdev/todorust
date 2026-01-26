@@ -149,12 +149,14 @@ async fn main() {
                 format,
             } => {
                 let output_format = format.unwrap_or(cli.format);
-                let content = title
-                    .filter(|value| !value.trim().is_empty())
-                    .or_else(|| content.filter(|value| !value.trim().is_empty()))
-                    .ok_or_else(|| {
-                        TodoError::InvalidInput("Task title/content cannot be empty".to_string())
-                    })?;
+                let title_value = title.filter(|value| !value.trim().is_empty());
+                let content_value = content.filter(|value| !value.trim().is_empty());
+                if title_value.is_some() && content_value.is_some() {
+                    eprintln!("Warning: both --title and --content provided; using --title.");
+                }
+                let content = title_value.or(content_value).ok_or_else(|| {
+                    TodoError::InvalidInput("Task title/content cannot be empty".to_string())
+                })?;
 
                 if let Some(p) = priority {
                     if !validate_priority(p) {
