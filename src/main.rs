@@ -190,8 +190,19 @@ async fn main() {
                 println!("{}", output);
             }
             Commands::Complete { task_id } => {
+                // First get the task to check if it's recurring
+                let tasks = client.get_tasks(None).await?;
+                let task = tasks.iter().find(|t| t.id == task_id);
+
+                let is_recurring = task.map(|t| t.is_recurring).unwrap_or(false);
+
                 client.complete_task(&task_id).await?;
-                println!("Task {} completed", task_id);
+
+                if is_recurring {
+                    println!("Task {} completed (this is a recurring task - it will be rescheduled)", task_id);
+                } else {
+                    println!("Task {} completed", task_id);
+                }
             }
             Commands::Reopen { task_id } => {
                 client.reopen_task(&task_id).await?;

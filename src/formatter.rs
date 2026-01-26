@@ -30,10 +30,11 @@ fn format_checklist(tasks: &[TaskOutput]) -> String {
     tasks.iter()
         .map(|task| {
             let checkbox = if task.is_completed { "[x]" } else { "[ ]" };
+            let recurring = if task.is_recurring { " ↻" } else { "" };
             let project = task.project_name.as_ref()
                 .map(|p| format!(" ({})", p))
                 .unwrap_or_default();
-            format!("- {} {}{}", checkbox, task.content, project)
+            format!("- {} {}{}{}", checkbox, task.content, recurring, project)
         })
         .collect::<Vec<_>>()
         .join("\n")
@@ -56,12 +57,13 @@ fn format_structured(tasks: &[TaskOutput]) -> String {
             let tasks_str = tasks.iter()
                 .map(|task| {
                     let checkbox = if task.is_completed { "[x]" } else { "[ ]" };
+                    let recurring = if task.is_recurring { " ↻" } else { "" };
                     let priority = if task.priority > 1 {
                         format!(" (Priority: {})", task.priority)
                     } else {
                         String::new()
                     };
-                    format!("- {} {}{}", checkbox, task.content, priority)
+                    format!("- {} {}{}{}", checkbox, task.content, recurring, priority)
                 })
                 .collect::<Vec<_>>()
                 .join("\n");
@@ -167,6 +169,7 @@ mod tests {
                 description: Some("Task 1 details".to_string()),
                 project_name: Some("Work".to_string()),
                 is_completed: true,
+                is_recurring: false,
                 priority: 4,
                 labels: vec![],
                 project_id: Some("p1".to_string()),
@@ -180,6 +183,7 @@ mod tests {
                 description: None,
                 project_name: Some("Personal".to_string()),
                 is_completed: false,
+                is_recurring: false,
                 priority: 2,
                 labels: vec![],
                 project_id: Some("p2".to_string()),
@@ -238,6 +242,7 @@ mod tests {
             labels: vec![],
             project_id: None,
             due_date: None,
+            is_recurring: false,
             created_at: "2026-01-10T10:00:00Z".to_string(),
             order: 1,
         }];
@@ -258,6 +263,7 @@ mod tests {
             labels: vec![],
             project_id: None,
             due_date: None,
+            is_recurring: false,
             created_at: "2026-01-10T10:00:00Z".to_string(),
             order: 1,
         }];

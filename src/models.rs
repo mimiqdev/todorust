@@ -44,6 +44,7 @@ pub struct TaskOutput {
     pub project_id: Option<String>,
     pub project_name: Option<String>,
     pub due_date: Option<String>,
+    pub is_recurring: bool,
     pub is_completed: bool,
     pub created_at: String,
     pub order: i32,
