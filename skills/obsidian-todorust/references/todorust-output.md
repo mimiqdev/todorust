@@ -29,6 +29,7 @@ Returned by: `todorust create`, `todorust tasks` (array)
 |-------|------|-------------|
 | `id` | string | Unique task identifier |
 | `content` | string | Task title/name |
+| `description` | string/null | Task description/details |
 | `project_id` | string/null | Project ID (null if no project) |
 | `project_name` | string/null | Enriched project name (null if no project) |
 | `due_date` | string/null | Due date in YYYY-MM-DD format (null if no date) |

@@ -41,7 +41,11 @@ enum Commands {
     /// Create a new task
     Create {
         #[arg(long)]
-        content: String,
+        content: Option<String>,
+        #[arg(long)]
+        title: Option<String>,
+        #[arg(long)]
+        description: Option<String>,
         #[arg(long)]
         project_id: Option<String>,
         #[arg(long)]
@@ -136,6 +140,8 @@ async fn main() {
             }
             Commands::Create {
                 content,
+                title,
+                description,
                 project_id,
                 due_date,
                 priority,
@@ -143,11 +149,14 @@ async fn main() {
                 format,
             } => {
                 let output_format = format.unwrap_or(cli.format);
-                if content.trim().is_empty() {
-                    return Err(TodoError::InvalidInput(
-                        "Task content cannot be empty".to_string(),
-                    ));
+                let title_value = title.filter(|value| !value.trim().is_empty());
+                let content_value = content.filter(|value| !value.trim().is_empty());
+                if title_value.is_some() && content_value.is_some() {
+                    eprintln!("Warning: both --title and --content provided; using --title.");
                 }
+                let content = title_value.or(content_value).ok_or_else(|| {
+                    TodoError::InvalidInput("Task title/content cannot be empty".to_string())
+                })?;
 
                 if let Some(p) = priority {
                     if !validate_priority(p) {
@@ -167,7 +176,14 @@ async fn main() {
                 });
 
                 let task = client
-                    .create_task(&content, project_id, due_date, priority, labels_vec)
+                    .create_task(
+                        &content,
+                        description.filter(|value| !value.trim().is_empty()),
+                        project_id,
+                        due_date,
+                        priority,
+                        labels_vec,
+                    )
                     .await?;
                 // For single task, wrap in vec for formatting
                 let output = vec![task].format(&output_format);
@@ -230,6 +246,47 @@ mod tests {
         let args = vec!["todorust", "--format", "structured", "tasks"];
         let cli = Cli::try_parse_from(args).unwrap();
         assert_eq!(cli.format, OutputFormat::Structured);
+    }
+
+    #[test]
+    fn test_cli_create_with_title() {
+        let args = vec![
+            "todorust",
+            "create",
+            "--title",
+            "New task",
+            "--description",
+            "Details",
+        ];
+        let cli = Cli::try_parse_from(args).unwrap();
+        if let Commands::Create {
+            title,
+            description,
+            content,
+            ..
+        } = cli.command
+        {
+            assert_eq!(title, Some("New task".to_string()));
+            assert_eq!(description, Some("Details".to_string()));
+            assert_eq!(content, None);
+        } else {
+            panic!("Expected Create command with title");
+        }
+    }
+
+    #[test]
+    fn test_cli_create_with_content() {
+        let args = vec!["todorust", "create", "--content", "Legacy task"];
+        let cli = Cli::try_parse_from(args).unwrap();
+        if let Commands::Create {
+            content, title, ..
+        } = cli.command
+        {
+            assert_eq!(content, Some("Legacy task".to_string()));
+            assert_eq!(title, None);
+        } else {
+            panic!("Expected Create command with content");
+        }
     }
 
     #[test]

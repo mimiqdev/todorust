@@ -112,14 +112,18 @@ todorust filters --format structured
 ### Create Task
 
 ```bash
-# Basic task
+# Basic task (new API fields)
+todorust create --title "Buy milk"
+todorust create --title "Write report" --description "Draft Q1 summary"
+
+# Backward compatible content flag
 todorust create --content "Buy milk"
 
 # With project and due date
-todorust create --content "Write report" --project-id "123" --due-date "2026-01-20" --priority 4
+todorust create --title "Write report" --project-id "123" --due-date "2026-01-20" --priority 4
 
 # With labels
-todorust create --content "Urgent task" --labels "urgent,work"
+todorust create --title "Urgent task" --labels "urgent,work"
 ```
 
 ### Complete/Reopen Task

@@ -37,6 +37,7 @@ project:Work & due within "7 days of today" & !completed
 {
   "id": "123",
   "content": "Task name",
+  "description": "Details about the task",
   "project_id": "456",
   "project_name": "Work",
   "due_date": "2026-01-15",
