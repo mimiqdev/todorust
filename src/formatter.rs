@@ -164,6 +164,7 @@ mod tests {
             TaskOutput {
                 id: "1".to_string(),
                 content: "Task 1".to_string(),
+                description: Some("Task 1 details".to_string()),
                 project_name: Some("Work".to_string()),
                 is_completed: true,
                 priority: 4,
@@ -176,6 +177,7 @@ mod tests {
             TaskOutput {
                 id: "2".to_string(),
                 content: "Task 2".to_string(),
+                description: None,
                 project_name: Some("Personal".to_string()),
                 is_completed: false,
                 priority: 2,
@@ -229,6 +231,7 @@ mod tests {
         let tasks = vec![TaskOutput {
             id: "1".to_string(),
             content: "No Project Task".to_string(),
+            description: None,
             project_name: None,
             is_completed: true,
             priority: 1,
@@ -248,6 +251,7 @@ mod tests {
         let tasks = vec![TaskOutput {
             id: "1".to_string(),
             content: "Inbox Task".to_string(),
+            description: None,
             project_name: None,
             is_completed: false,
             priority: 1,

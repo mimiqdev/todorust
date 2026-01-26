@@ -13,6 +13,8 @@ pub struct Project {
 pub struct Task {
     pub id: String,
     pub content: String,
+    #[serde(default)]
+    pub description: Option<String>,
     pub project_id: Option<String>,
     #[serde(default)]
     pub due: Option<Due>,
@@ -38,6 +40,7 @@ pub struct Due {
 pub struct TaskOutput {
     pub id: String,
     pub content: String,
+    pub description: Option<String>,
     pub project_id: Option<String>,
     pub project_name: Option<String>,
     pub due_date: Option<String>,

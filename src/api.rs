@@ -139,6 +139,7 @@ impl TodoistClient {
                 TaskOutput {
                     id: task.id,
                     content: task.content,
+                    description: task.description,
                     project_id: task.project_id,
                     project_name,
                     due_date: task.due.and_then(|d| d.date),
@@ -178,6 +179,7 @@ impl TodoistClient {
     pub async fn create_task(
         &self,
         content: &str,
+        description: Option<String>,
         project_id: Option<String>,
         due_date: Option<String>,
         priority: Option<u8>,
@@ -185,6 +187,7 @@ impl TodoistClient {
     ) -> Result<TaskOutput, crate::error::TodoError> {
         let request_body = CreateTaskRequest {
             content: content.to_string(),
+            description,
             project_id,
             due_string: due_date,
             priority,
@@ -271,6 +274,8 @@ impl TodoistClient {
 #[derive(Serialize)]
 struct CreateTaskRequest {
     content: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    description: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     project_id: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -365,6 +370,7 @@ mod tests {
         let json = r#"{
             "id": "456",
             "content": "Buy milk",
+            "description": "From the store",
             "project_id": "123",
             "due": {"date": "2026-01-15"},
             "is_completed": false,
@@ -377,6 +383,7 @@ mod tests {
         let task: crate::models::Task = serde_json::from_str(json).unwrap();
         assert_eq!(task.id, "456");
         assert_eq!(task.content, "Buy milk");
+        assert_eq!(task.description.as_deref(), Some("From the store"));
     }
 
     #[test]
@@ -513,7 +520,7 @@ mod tests {
         let client = TodoistClient::new(get_test_token());
 
         let task_output = client
-            .create_task("Test task from integration test", None, None, None, None)
+            .create_task("Test task from integration test", None, None, None, None, None)
             .await
             .unwrap();
 
@@ -532,6 +539,7 @@ mod tests {
         let task = client
             .create_task(
                 "Test task with labels",
+                None,
                 None,
                 None,
                 None,
@@ -554,7 +562,7 @@ mod tests {
 
         // Create a task first
         let task = client
-            .create_task("Test task for completion", None, None, None, None)
+            .create_task("Test task for completion", None, None, None, None, None)
             .await
             .unwrap();
 
@@ -575,7 +583,7 @@ mod tests {
 
         // Create and complete a task
         let task = client
-            .create_task("Test task for reopening", None, None, None, None)
+            .create_task("Test task for reopening", None, None, None, None, None)
             .await
             .unwrap();
         client.complete_task(&task.id).await.unwrap();
@@ -601,13 +609,13 @@ mod tests {
 
         // Create a priority 4 task (lowest priority in API)
         let task_p4 = client
-            .create_task("Test priority filter P4", None, None, Some(4), None)
+            .create_task("Test priority filter P4", None, None, None, Some(4), None)
             .await
             .unwrap();
 
         // Create a priority 1 task (highest priority in API)
         let task_p1 = client
-            .create_task("Test priority filter P1", None, None, Some(1), None)
+            .create_task("Test priority filter P1", None, None, None, Some(1), None)
             .await
             .unwrap();
 
@@ -638,7 +646,7 @@ mod tests {
 
         // Create and complete a task
         let task = client
-            .create_task("Test completed status display", None, None, None, None)
+            .create_task("Test completed status display", None, None, None, None, None)
             .await
             .unwrap();
 
