@@ -2,7 +2,10 @@ use reqwest::Client as HttpClient;
 
 use crate::error::TodoError;
 
-use super::commands::{Command, CommandBuilder};
+use super::commands::{
+    Command, CommandBuilder, FilterAddArgs, FilterOrderArgs, ItemAddArgs, ItemUpdateArgs,
+    LabelAddArgs, ProjectAddArgs, SectionAddArgs,
+};
 use super::models::{SyncReadResponse, SyncWriteResponse};
 
 /// Todoist Sync API Client
@@ -246,5 +249,246 @@ mod tests {
     pub async fn get_filters(&self) -> Result<Vec<super::models::SyncFilter>, TodoError> {
         let response = self.sync(&["filters"]).await?;
         Ok(response.filters)
+    }
+
+    // ==================== 资源写入方法 ====================
+
+    /// 添加项目 (使用 Sync API)
+    pub async fn add_project(
+        &mut self,
+        name: &str,
+        color: Option<&str>,
+        favorite: Option<bool>,
+    ) -> Result<String, TodoError> {
+        let args = ProjectAddArgs::new(name.to_string())
+            .color(color.map(|c| c.to_string()))
+            .favorite(favorite);
+
+        let mut builder = CommandBuilder::new();
+        builder.project_add(args);
+
+        let response = self.execute(&mut builder).await?;
+        
+        // 提取真实 ID
+        if let Some((temp_id, real_id)) = response.temp_id_mapping.iter().next() {
+            return Ok(real_id.clone());
+        }
+        
+        Err(TodoError::Api("Failed to get project ID from response".to_string()))
+    }
+
+    /// 添加任务 (使用 Sync API)
+    pub async fn add_task(
+        &mut self,
+        content: &str,
+        description: Option<&str>,
+        project_id: Option<&str>,
+        section_id: Option<&str>,
+        due_string: Option<&str>,
+        priority: Option<u8>,
+        labels: Option<Vec<&str>>,
+    ) -> Result<String, TodoError> {
+        let args = ItemAddArgs::new(content.to_string())
+            .description(description.map(|d| d.to_string()))
+            .project_id(project_id.map(|p| p.to_string()))
+            .section_id(section_id.map(|s| s.to_string()))
+            .due_string(due_string.map(|d| d.to_string()))
+            .priority(priority)
+            .labels(labels.map(|ls| ls.iter().map(|&s| s.to_string()).collect()));
+
+        let mut builder = CommandBuilder::new();
+        builder.item_add(args);
+
+        let response = self.execute(&mut builder).await?;
+        
+        // 提取真实 ID
+        if let Some((temp_id, real_id)) = response.temp_id_mapping.iter().next() {
+            return Ok(real_id.clone());
+        }
+        
+        Err(TodoError::Api("Failed to get task ID from response".to_string()))
+    }
+
+    /// 更新任务 (使用 Sync API)
+    pub async fn update_task(
+        &mut self,
+        id: &str,
+        content: Option<&str>,
+        description: Option<&str>,
+        priority: Option<u8>,
+        due_string: Option<&str>,
+        labels: Option<Vec<&str>>,
+    ) -> Result<(), TodoError> {
+        let args = ItemUpdateArgs::new(id.to_string())
+            .content(content.map(|c| c.to_string()))
+            .description(description.map(|d| d.to_string()))
+            .priority(priority)
+            .due_string(due_string.map(|d| d.to_string()))
+            .labels(labels.map(|ls| ls.iter().map(|&s| s.to_string()).collect()));
+
+        let mut builder = CommandBuilder::new();
+        builder.item_update(args);
+
+        self.execute(&mut builder).await?;
+        Ok(())
+    }
+
+    /// 完成任务 (使用 Sync API)
+    pub async fn complete_task(&mut self, id: &str) -> Result<(), TodoError> {
+        let mut builder = CommandBuilder::new();
+        builder.item_complete(id);
+
+        self.execute(&mut builder).await?;
+        Ok(())
+    }
+
+    /// 删除任务 (使用 Sync API)
+    pub async fn delete_task(&mut self, id: &str) -> Result<(), TodoError> {
+        let mut builder = CommandBuilder::new();
+        builder.item_delete(id);
+
+        self.execute(&mut builder).await?;
+        Ok(())
+    }
+
+    /// 添加分区 (使用 Sync API)
+    pub async fn add_section(
+        &mut self,
+        name: &str,
+        project_id: &str,
+    ) -> Result<String, TodoError> {
+        let args = SectionAddArgs::new(name.to_string(), project_id.to_string());
+
+        let mut builder = CommandBuilder::new();
+        builder.section_add(args);
+
+        let response = self.execute(&mut builder).await?;
+        
+        // 提取真实 ID
+        if let Some((temp_id, real_id)) = response.temp_id_mapping.iter().next() {
+            return Ok(real_id.clone());
+        }
+        
+        Err(TodoError::Api("Failed to get section ID from response".to_string()))
+    }
+
+    /// 更新分区 (使用 Sync API)
+    pub async fn update_section(&mut self, id: &str, name: &str) -> Result<(), TodoError> {
+        let mut builder = CommandBuilder::new();
+        builder.section_update(id, name);
+
+        self.execute(&mut builder).await?;
+        Ok(())
+    }
+
+    /// 删除分区 (使用 Sync API)
+    pub async fn delete_section(&mut self, id: &str) -> Result<(), TodoError> {
+        let mut builder = CommandBuilder::new();
+        builder.section_delete(id);
+
+        self.execute(&mut builder).await?;
+        Ok(())
+    }
+
+    /// 添加标签 (使用 Sync API)
+    pub async fn add_label(&mut self, name: &str, color: Option<&str>) -> Result<String, TodoError> {
+        let args = LabelAddArgs::new(name.to_string())
+            .color(color.map(|c| c.to_string()));
+
+        let mut builder = CommandBuilder::new();
+        builder.label_add(args);
+
+        let response = self.execute(&mut builder).await?;
+        
+        // 提取真实 ID
+        if let Some((temp_id, real_id)) = response.temp_id_mapping.iter().next() {
+            return Ok(real_id.clone());
+        }
+        
+        Err(TodoError::Api("Failed to get label ID from response".to_string()))
+    }
+
+    /// 更新标签 (使用 Sync API)
+    pub async fn update_label(
+        &mut self,
+        id: &str,
+        name: Option<&str>,
+        color: Option<&str>,
+    ) -> Result<(), TodoError> {
+        let mut builder = CommandBuilder::new();
+        builder.label_update(id, name, color);
+
+        self.execute(&mut builder).await?;
+        Ok(())
+    }
+
+    /// 删除标签 (使用 Sync API)
+    pub async fn delete_label(&mut self, id: &str) -> Result<(), TodoError> {
+        let mut builder = CommandBuilder::new();
+        builder.label_delete(id);
+
+        self.execute(&mut builder).await?;
+        Ok(())
+    }
+
+    /// 更新过滤器顺序 (使用 Sync API)
+    pub async fn update_filter_order(&mut self, filters: &[(&str, i64)]) -> Result<(), TodoError> {
+        let filter_args: Vec<FilterOrderArgs> = filters
+            .iter()
+            .map(|(id, order)| FilterOrderArgs::new(id.to_string(), *order))
+            .collect();
+
+        let mut builder = CommandBuilder::new();
+        builder.filter_update_orders(&filter_args);
+
+        self.execute(&mut builder).await?;
+        Ok(())
+    }
+
+    /// 添加过滤器 (使用 Sync API)
+    pub async fn add_filter(
+        &mut self,
+        name: &str,
+        query: &str,
+        color: Option<&str>,
+    ) -> Result<String, TodoError> {
+        let args = FilterAddArgs::new(name.to_string(), query.to_string())
+            .color(color.map(|c| c.to_string()));
+
+        let mut builder = CommandBuilder::new();
+        builder.filter_add(args);
+
+        let response = self.execute(&mut builder).await?;
+        
+        // 提取真实 ID
+        if let Some((temp_id, real_id)) = response.temp_id_mapping.iter().next() {
+            return Ok(real_id.clone());
+        }
+        
+        Err(TodoError::Api("Failed to get filter ID from response".to_string()))
+    }
+
+    /// 更新过滤器 (使用 Sync API)
+    pub async fn update_filter(
+        &mut self,
+        id: &str,
+        name: Option<&str>,
+        query: Option<&str>,
+        color: Option<&str>,
+    ) -> Result<(), TodoError> {
+        let mut builder = CommandBuilder::new();
+        builder.filter_update(id, name, query, color);
+
+        self.execute(&mut builder).await?;
+        Ok(())
+    }
+
+    /// 删除过滤器 (使用 Sync API)
+    pub async fn delete_filter(&mut self, id: &str) -> Result<(), TodoError> {
+        let mut builder = CommandBuilder::new();
+        builder.filter_delete(id);
+
+        self.execute(&mut builder).await?;
+        Ok(())
     }
 }

@@ -8,5 +8,8 @@ mod commands;
 mod models;
 
 pub use client::TodoistSyncClient;
-pub use commands::{Command, CommandBuilder};
+pub use commands::{
+    Command, CommandBuilder, FilterAddArgs, FilterOrderArgs, ItemAddArgs, ItemUpdateArgs,
+    LabelAddArgs, ProjectAddArgs, SectionAddArgs,
+};
 pub use models::{SyncProject, SyncTask, SyncSection, SyncLabel, SyncFilter, SyncDue};
