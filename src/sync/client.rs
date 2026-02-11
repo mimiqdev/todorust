@@ -215,4 +215,36 @@ mod tests {
         assert_eq!(commands[1].type_, "item_add");
         assert_eq!(commands[2].type_, "item_close");
     }
+
+    // ==================== 资源读取方法 ====================
+
+    /// 获取所有项目 (使用 Sync API)
+    pub async fn get_projects(&self) -> Result<Vec<crate::models::Project>, TodoError> {
+        let response = self.sync(&["projects"]).await?;
+        Ok(response.projects.into_iter().map(Into::into).collect())
+    }
+
+    /// 获取所有任务/项目 (使用 Sync API)
+    pub async fn get_tasks(&self) -> Result<Vec<crate::models::Task>, TodoError> {
+        let response = self.sync(&["items"]).await?;
+        Ok(response.items.into_iter().map(Into::into).collect())
+    }
+
+    /// 获取所有分区 (使用 Sync API)
+    pub async fn get_sections(&self) -> Result<Vec<super::models::SyncSection>, TodoError> {
+        let response = self.sync(&["sections"]).await?;
+        Ok(response.sections)
+    }
+
+    /// 获取所有标签 (使用 Sync API)
+    pub async fn get_labels(&self) -> Result<Vec<super::models::SyncLabel>, TodoError> {
+        let response = self.sync(&["labels"]).await?;
+        Ok(response.labels)
+    }
+
+    /// 获取所有过滤器 (使用 Sync API)
+    pub async fn get_filters(&self) -> Result<Vec<super::models::SyncFilter>, TodoError> {
+        let response = self.sync(&["filters"]).await?;
+        Ok(response.filters)
+    }
 }

@@ -7,3 +7,4 @@ pub mod sync;
 
 pub use formatter::{OutputFormat, Formattable};
 pub use models::Project;
+pub use sync::{SyncProject, SyncTask, SyncSection, SyncLabel, SyncFilter, TodoistSyncClient};

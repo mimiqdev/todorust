@@ -122,3 +122,38 @@ pub struct SyncDue {
     #[serde(default)]
     pub timezone: Option<String>,
 }
+
+// ==================== 类型转换 ====================
+
+impl From<SyncProject> for Project {
+    fn from(sync: SyncProject) -> Self {
+        Self {
+            id: sync.id,
+            name: sync.name,
+            color: sync.color,
+            is_shared: sync.shared,
+            is_favorite: sync.favorite,
+        }
+    }
+}
+
+impl From<SyncTask> for Task {
+    fn from(sync: SyncTask) -> Self {
+        Self {
+            id: sync.id,
+            content: sync.content,
+            description: sync.description,
+            project_id: sync.project_id,
+            due: sync.due.map(|d| Due {
+                date: d.date,
+                is_recurring: Some(d.is_recurring),
+                datetime: d.datetime,
+            }),
+            is_completed: sync.is_completed,
+            created_at: sync.created_at,
+            order: sync.order as i32,
+            priority: sync.priority,
+            labels: sync.labels,
+        }
+    }
+}
