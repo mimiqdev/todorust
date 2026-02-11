@@ -3,6 +3,7 @@ pub mod config;
 pub mod error;
 pub mod formatter;
 pub mod models;
+pub mod sync;
 
 pub use formatter::{OutputFormat, Formattable};
 pub use models::Project;
