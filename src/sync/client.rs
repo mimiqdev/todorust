@@ -2,10 +2,7 @@ use reqwest::Client as HttpClient;
 
 use crate::error::TodoError;
 
-use super::commands::{
-    Command, CommandBuilder, FilterAddArgs, FilterOrderArgs, ItemAddArgs, ItemUpdateArgs,
-    LabelAddArgs, ProjectAddArgs, SectionAddArgs,
-};
+use super::commands::{Command, CommandBuilder};
 use super::models::{SyncReadResponse, SyncWriteResponse};
 
 /// Todoist Sync API Client
@@ -53,7 +50,7 @@ impl TodoistSyncClient {
             .header("Authorization", self.get_auth_header())
             .form(&[
                 ("sync_token", sync_token),
-                ("resource_types", serde_json::to_string(resource_types).unwrap()),
+                ("resource_types", &serde_json::to_string(resource_types).unwrap()),
             ])
             .send()
             .await?;
@@ -141,7 +138,7 @@ impl TodoistSyncClient {
     /// 辅助方法：从 CommandBuilder 执行命令
     pub async fn execute(
         &self,
-        builder: &mut CommandBuilder,
+        builder: CommandBuilder,
     ) -> Result<SyncWriteResponse, TodoError> {
         let commands = builder.build();
         self.execute_commands_with_status(&commands).await
@@ -267,7 +264,7 @@ mod tests {
         let mut builder = CommandBuilder::new();
         builder.project_add(args);
 
-        let response = self.execute(&mut builder).await?;
+        let response = self.execute(builder).await?;
         
         // 提取真实 ID
         if let Some((temp_id, real_id)) = response.temp_id_mapping.iter().next() {
@@ -299,7 +296,7 @@ mod tests {
         let mut builder = CommandBuilder::new();
         builder.item_add(args);
 
-        let response = self.execute(&mut builder).await?;
+        let response = self.execute(builder).await?;
         
         // 提取真实 ID
         if let Some((temp_id, real_id)) = response.temp_id_mapping.iter().next() {
@@ -329,7 +326,7 @@ mod tests {
         let mut builder = CommandBuilder::new();
         builder.item_update(args);
 
-        self.execute(&mut builder).await?;
+        self.execute(builder).await?;
         Ok(())
     }
 
@@ -338,7 +335,7 @@ mod tests {
         let mut builder = CommandBuilder::new();
         builder.item_complete(id);
 
-        self.execute(&mut builder).await?;
+        self.execute(builder).await?;
         Ok(())
     }
 
@@ -347,7 +344,7 @@ mod tests {
         let mut builder = CommandBuilder::new();
         builder.item_delete(id);
 
-        self.execute(&mut builder).await?;
+        self.execute(builder).await?;
         Ok(())
     }
 
@@ -362,7 +359,7 @@ mod tests {
         let mut builder = CommandBuilder::new();
         builder.section_add(args);
 
-        let response = self.execute(&mut builder).await?;
+        let response = self.execute(builder).await?;
         
         // 提取真实 ID
         if let Some((temp_id, real_id)) = response.temp_id_mapping.iter().next() {
@@ -377,7 +374,7 @@ mod tests {
         let mut builder = CommandBuilder::new();
         builder.section_update(id, name);
 
-        self.execute(&mut builder).await?;
+        self.execute(builder).await?;
         Ok(())
     }
 
@@ -386,7 +383,7 @@ mod tests {
         let mut builder = CommandBuilder::new();
         builder.section_delete(id);
 
-        self.execute(&mut builder).await?;
+        self.execute(builder).await?;
         Ok(())
     }
 
@@ -398,7 +395,7 @@ mod tests {
         let mut builder = CommandBuilder::new();
         builder.label_add(args);
 
-        let response = self.execute(&mut builder).await?;
+        let response = self.execute(builder).await?;
         
         // 提取真实 ID
         if let Some((temp_id, real_id)) = response.temp_id_mapping.iter().next() {
@@ -418,7 +415,7 @@ mod tests {
         let mut builder = CommandBuilder::new();
         builder.label_update(id, name, color);
 
-        self.execute(&mut builder).await?;
+        self.execute(builder).await?;
         Ok(())
     }
 
@@ -427,7 +424,7 @@ mod tests {
         let mut builder = CommandBuilder::new();
         builder.label_delete(id);
 
-        self.execute(&mut builder).await?;
+        self.execute(builder).await?;
         Ok(())
     }
 
@@ -441,7 +438,7 @@ mod tests {
         let mut builder = CommandBuilder::new();
         builder.filter_update_orders(&filter_args);
 
-        self.execute(&mut builder).await?;
+        self.execute(builder).await?;
         Ok(())
     }
 
@@ -458,7 +455,7 @@ mod tests {
         let mut builder = CommandBuilder::new();
         builder.filter_add(args);
 
-        let response = self.execute(&mut builder).await?;
+        let response = self.execute(builder).await?;
         
         // 提取真实 ID
         if let Some((temp_id, real_id)) = response.temp_id_mapping.iter().next() {
@@ -479,7 +476,7 @@ mod tests {
         let mut builder = CommandBuilder::new();
         builder.filter_update(id, name, query, color);
 
-        self.execute(&mut builder).await?;
+        self.execute(builder).await?;
         Ok(())
     }
 
@@ -488,7 +485,7 @@ mod tests {
         let mut builder = CommandBuilder::new();
         builder.filter_delete(id);
 
-        self.execute(&mut builder).await?;
+        self.execute(builder).await?;
         Ok(())
     }
 }

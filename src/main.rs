@@ -1,5 +1,4 @@
 use clap::{Parser, Subcommand};
-use serde_json::to_string_pretty;
 use todorust::{
     api::TodoistClient,
     config::{init_config, load_config},

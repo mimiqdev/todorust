@@ -1,8 +1,7 @@
-use reqwest::Client as HttpClient;
 use serde::Deserialize;
 use std::collections::HashMap;
 
-use crate::error::TodoError;
+use crate::models::{Due, Project, Task};
 
 /// Sync API 读取响应
 #[derive(Debug, Deserialize)]
