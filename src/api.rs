@@ -22,6 +22,7 @@ pub struct TodoistClient {
     http: HttpClient,
 }
 
+#[allow(deprecated)]
 impl TodoistClient {
     #[deprecated(since = "0.5.0", note = "Use sync::TodoistSyncClient instead")]
     pub fn new(token: String) -> Self {
@@ -243,7 +244,7 @@ impl TodoistClient {
             .await?;
 
         let status = response.status();
-        let response_text = response.text().await?;
+        let _response_text = response.text().await?;
 
         if status.is_success() || status.as_u16() == 404 {
             Ok(())
@@ -262,7 +263,7 @@ impl TodoistClient {
             .await?;
 
         let status = response.status();
-        let response_text = response.text().await?;
+        let _response_text = response.text().await?;
 
         if status.is_success() || status.as_u16() == 204 {
             Ok(())
@@ -281,7 +282,7 @@ impl TodoistClient {
             .await?;
 
         let status = response.status();
-        let response_text = response.text().await?;
+        let _response_text = response.text().await?;
 
         if status.is_success() || status.as_u16() == 204 {
             Ok(())

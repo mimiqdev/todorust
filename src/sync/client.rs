@@ -234,10 +234,11 @@ impl TodoistSyncClient {
         // 提取真实 ID
         response.temp_id_mapping.values().next()
             .ok_or_else(|| TodoError::Api("No ID returned".to_string()))
-            .map(|s| s.clone())
+            .cloned()
     }
 
     /// 添加任务 (使用 Sync API)
+    #[allow(clippy::too_many_arguments)]
     pub async fn add_task(
         &self,
         content: &str,
@@ -264,7 +265,7 @@ impl TodoistSyncClient {
         // 提取真实 ID
         response.temp_id_mapping.values().next()
             .ok_or_else(|| TodoError::Api("No ID returned".to_string()))
-            .map(|s| s.clone())
+            .cloned()
     }
 
     /// 更新任务 (使用 Sync API)
@@ -325,7 +326,7 @@ impl TodoistSyncClient {
         // 提取真实 ID
         response.temp_id_mapping.values().next()
             .ok_or_else(|| TodoError::Api("No ID returned".to_string()))
-            .map(|s| s.clone())
+            .cloned()
     }
 
     /// 更新分区 (使用 Sync API)
@@ -359,7 +360,7 @@ impl TodoistSyncClient {
         // 提取真实 ID
         response.temp_id_mapping.values().next()
             .ok_or_else(|| TodoError::Api("No ID returned".to_string()))
-            .map(|s| s.clone())
+            .cloned()
     }
 
     /// 更新标签 (使用 Sync API)
@@ -417,7 +418,7 @@ impl TodoistSyncClient {
         // 提取真实 ID
         response.temp_id_mapping.values().next()
             .ok_or_else(|| TodoError::Api("No ID returned".to_string()))
-            .map(|s| s.clone())
+            .cloned()
     }
 
     /// 更新过滤器 (使用 Sync API)

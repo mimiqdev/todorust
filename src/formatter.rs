@@ -64,7 +64,7 @@ fn format_structured(tasks: &[TaskOutput]) -> String {
     }
 
     let mut projects: Vec<_> = grouped.into_iter().collect();
-    projects.sort_by(|a, b| a.0.cmp(&b.0));
+    projects.sort_by(|a, b| a.0.cmp(b.0));
 
     projects
         .iter()

@@ -1,4 +1,5 @@
 use clap::{Parser, Subcommand};
+#[allow(deprecated)]
 use todorust::{
     api::TodoistClient,
     config::{init_config, load_config},
@@ -117,6 +118,7 @@ async fn main() {
         return;
     }
 
+    #[allow(deprecated)]
     let result = async {
         let config = load_config()?;
         let client = TodoistClient::new(config.api_token);
