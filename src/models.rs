@@ -1,3 +1,8 @@
+//! # Data Models
+//!
+//! This module contains the core data structures used throughout the application.
+//! Models are shared between the REST API and Sync API clients.
+
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

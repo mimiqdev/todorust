@@ -1,3 +1,10 @@
+/*!
+ * # Error Types
+ *
+ * Central error handling for the application.
+ * All errors are defined in this module as a `TodoError` enum.
+ */
+
 use thiserror::Error;
 
 #[derive(Error, Debug)]

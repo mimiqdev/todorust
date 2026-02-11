@@ -1,3 +1,8 @@
+//! # Sync API Models
+//!
+//! This module contains data structures specific to the Todoist Sync API.
+//! These models handle the JSON responses from the sync endpoint.
+
 use serde::Deserialize;
 use std::collections::HashMap;
 

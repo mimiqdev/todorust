@@ -1,3 +1,27 @@
+/*!
+ * # Sync API Commands
+ *
+ * This module provides the command structures and builder for the Todoist Sync API.
+ *
+ * ## Commands
+ *
+ * Commands are used to perform write operations through the Sync API.
+ * The [`CommandBuilder`] provides a fluent API for constructing commands.
+ *
+ * ## Example
+ *
+ * ```ignore
+ * use todorust::sync::commands::{CommandBuilder, ItemAddArgs};
+ *
+ * let mut builder = CommandBuilder::new();
+ * builder
+ *     .item_add(ItemAddArgs::new("Buy milk".to_string()))
+ *     .item_add(ItemAddArgs::new("Clean house".to_string()));
+ *
+ * let commands = builder.build();
+ * ```
+ */
+
 use serde::Serialize;
 use uuid::Uuid;
 

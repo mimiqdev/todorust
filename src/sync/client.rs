@@ -9,6 +9,29 @@ use super::models::{SyncReadResponse, SyncWriteResponse};
 ///
 /// This client provides access to Todoist's Sync API v1,
 /// which supports batch operations and incremental synchronization.
+///
+/// # Features
+/// - Batch read operations for all resource types
+/// - Batch write operations via commands
+/// - Incremental sync with sync_token
+///
+/// # Example
+///
+/// ```ignore
+/// use todorust::sync::TodoistSyncClient;
+///
+/// #[tokio::main]
+/// async fn main() -> Result<(), Box<dyn std::error::Error>> {
+///     let client = TodoistSyncClient::new("your_token".to_string());
+///
+///     // Full sync to get all resources
+///     let response = client.sync(&["projects", "items", "sections"]).await?;
+///     println!("Projects: {:?}", response.projects);
+///     println!("Tasks: {:?}", response.items);
+///
+///     Ok(())
+/// }
+/// ```
 pub struct TodoistSyncClient {
     token: String,
     sync_url: String,
@@ -17,7 +40,15 @@ pub struct TodoistSyncClient {
 }
 
 impl TodoistSyncClient {
-    /// Create a new TodoistSyncClient
+    /// Creates a new TodoistSyncClient with the provided API token.
+    ///
+    /// # Arguments
+    ///
+    /// * `token` - Your Todoist API token
+    ///
+    /// # Returns
+    ///
+    /// A new `TodoistSyncClient` instance
     pub fn new(token: String) -> Self {
         Self {
             token,
@@ -101,12 +132,16 @@ impl TodoistSyncClient {
             .map_err(|e| TodoError::Api(format!("Failed to parse command response: {}", e)))
     }
 
-    /// 获取当前 sync_token
+    /// Gets the current sync token.
+    ///
+    /// Returns `None` if no sync has been performed yet.
     pub fn get_sync_token(&self) -> Option<&str> {
         self.sync_token.as_deref()
     }
 
-    /// 设置 sync_token
+    /// Sets the sync token for incremental sync.
+    ///
+    /// Use this to continue from a previous sync state.
     pub fn set_sync_token(&mut self, token: String) {
         self.sync_token = Some(token);
     }
