@@ -1,16 +1,30 @@
+/*!
+ * Todoist REST API Client
+ *
+ * ⚠️ **DEPRECATED**: This module uses the legacy REST API.
+ * Please use the [`sync`](sync/index.html) module with [`TodoistSyncClient`] instead,
+ * which provides better performance through batch operations and incremental sync.
+ *
+ * This client provides access to Todoist's REST API v1 for basic operations.
+ * For production use, prefer the Sync API for better efficiency.
+ */
+
 use reqwest::Client as HttpClient;
 use serde::Serialize;
 
 use crate::models::{Filter, Project, ProjectsResponse, SyncResponse, Task, TaskOutput, TasksResponse};
 use crate::error::TodoError;
 
+#[deprecated(since = "0.5.0", note = "Use sync::TodoistSyncClient instead for better performance")]
 pub struct TodoistClient {
     token: String,
     base_url: String,
     http: HttpClient,
 }
 
+#[allow(deprecated)]
 impl TodoistClient {
+    #[deprecated(since = "0.5.0", note = "Use sync::TodoistSyncClient instead")]
     pub fn new(token: String) -> Self {
         Self {
             token,
@@ -23,6 +37,7 @@ impl TodoistClient {
         format!("Bearer {}", self.token)
     }
 
+    #[deprecated(since = "0.5.0", note = "Use sync::TodoistSyncClient instead")]
     pub async fn get_projects(&self) -> Result<Vec<Project>, crate::error::TodoError> {
         let response = self
             .http
@@ -32,17 +47,18 @@ impl TodoistClient {
             .await?;
 
         let status = response.status();
-        let response_text = response.text().await?;
+        let _response_text = response.text().await?;
 
         if !status.is_success() {
-            return Err(TodoError::Http(status.as_u16(), response_text));
+            return Err(TodoError::Http(status.as_u16()));
         }
 
-        let projects_response: ProjectsResponse = serde_json::from_str(&response_text)
-            .map_err(|e| TodoError::Api(format!("Failed to parse projects response: {}\nResponse: {}", e, response_text)))?;
+        let projects_response: ProjectsResponse = serde_json::from_str(&_response_text)
+            .map_err(|e| TodoError::Api(format!("Failed to parse projects response: {}\nResponse: {}", e, _response_text)))?;
         Ok(projects_response.results)
     }
 
+    #[deprecated(since = "0.5.0", note = "Use sync::TodoistSyncClient instead")]
     pub async fn get_tasks(
         &self,
         filter: Option<String>,
@@ -100,7 +116,7 @@ impl TodoistClient {
         let response_text = response.text().await?;
 
         if !status.is_success() {
-            return Err(TodoError::Http(status.as_u16(), response_text));
+            return Err(TodoError::Http(status.as_u16()));
         }
 
         // Parse response - completed endpoint uses "items", others use "results"
@@ -153,6 +169,7 @@ impl TodoistClient {
             .collect()
     }
 
+    #[deprecated(since = "0.5.0", note = "Use sync::TodoistSyncClient instead")]
     pub async fn get_filters(&self) -> Result<Vec<Filter>, crate::error::TodoError> {
         let response = self
             .http
@@ -168,7 +185,7 @@ impl TodoistClient {
         let response_text = response.text().await?;
 
         if !status.is_success() {
-            return Err(TodoError::Http(status.as_u16(), response_text));
+            return Err(TodoError::Http(status.as_u16()));
         }
 
         let sync_data: SyncResponse = serde_json::from_str(&response_text)
@@ -176,6 +193,7 @@ impl TodoistClient {
         Ok(sync_data.filters)
     }
 
+    #[deprecated(since = "0.5.0", note = "Use sync::TodoistSyncClient instead")]
     pub async fn create_task(
         &self,
         content: &str,
@@ -206,7 +224,7 @@ impl TodoistClient {
         let response_text = response.text().await?;
 
         if !status.is_success() {
-            return Err(crate::error::TodoError::Http(status.as_u16(), response_text));
+            return Err(crate::error::TodoError::Http(status.as_u16()));
         }
 
         let task: Task = serde_json::from_str(&response_text)
@@ -216,6 +234,7 @@ impl TodoistClient {
     }
 
     #[allow(dead_code)]
+    #[deprecated(since = "0.5.0", note = "Use sync::TodoistSyncClient instead")]
     async fn delete_task(&self, task_id: &str) -> Result<(), crate::error::TodoError> {
         let response = self
             .http
@@ -225,15 +244,16 @@ impl TodoistClient {
             .await?;
 
         let status = response.status();
-        let response_text = response.text().await?;
+        let _response_text = response.text().await?;
 
         if status.is_success() || status.as_u16() == 404 {
             Ok(())
         } else {
-            Err(TodoError::Http(status.as_u16(), response_text))
+            Err(TodoError::Http(status.as_u16()))
         }
     }
 
+    #[deprecated(since = "0.5.0", note = "Use sync::TodoistSyncClient instead")]
     pub async fn complete_task(&self, task_id: &str) -> Result<(), crate::error::TodoError> {
         let response = self
             .http
@@ -243,15 +263,16 @@ impl TodoistClient {
             .await?;
 
         let status = response.status();
-        let response_text = response.text().await?;
+        let _response_text = response.text().await?;
 
         if status.is_success() || status.as_u16() == 204 {
             Ok(())
         } else {
-            Err(TodoError::Http(status.as_u16(), response_text))
+            Err(TodoError::Http(status.as_u16()))
         }
     }
 
+    #[deprecated(since = "0.5.0", note = "Use sync::TodoistSyncClient instead")]
     pub async fn reopen_task(&self, task_id: &str) -> Result<(), crate::error::TodoError> {
         let response = self
             .http
@@ -261,12 +282,12 @@ impl TodoistClient {
             .await?;
 
         let status = response.status();
-        let response_text = response.text().await?;
+        let _response_text = response.text().await?;
 
         if status.is_success() || status.as_u16() == 204 {
             Ok(())
         } else {
-            Err(TodoError::Http(status.as_u16(), response_text))
+            Err(TodoError::Http(status.as_u16()))
         }
     }
 }

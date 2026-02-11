@@ -1,5 +1,5 @@
 use clap::{Parser, Subcommand};
-use serde_json::to_string_pretty;
+#[allow(deprecated)]
 use todorust::{
     api::TodoistClient,
     config::{init_config, load_config},
@@ -84,8 +84,8 @@ fn handle_error(error: TodoError) {
             eprintln!("Error: Configuration not found.");
             eprintln!("Run: todorust init --api-token YOUR_TOKEN");
         }
-        TodoError::Http(status, msg) => {
-            eprintln!("Error: HTTP {} - {}", status, msg);
+        TodoError::Http(status) => {
+            eprintln!("Error: HTTP {}", status);
         }
         TodoError::Api(msg) => {
             eprintln!("API Error: {}", msg);
@@ -98,6 +98,9 @@ fn handle_error(error: TodoError) {
         }
         TodoError::InvalidInput(msg) => {
             eprintln!("Invalid Input: {}", msg);
+        }
+        TodoError::Serialize(msg) => {
+            eprintln!("Serialize Error: {}", msg);
         }
     }
     std::process::exit(1);
@@ -115,6 +118,7 @@ async fn main() {
         return;
     }
 
+    #[allow(deprecated)]
     let result = async {
         let config = load_config()?;
         let client = TodoistClient::new(config.api_token);

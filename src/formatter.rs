@@ -1,3 +1,16 @@
+/*!
+ * # Output Formatting
+ *
+ * This module provides utilities for formatting task, project, and filter output
+ * in various formats (JSON, Checklist, Structured).
+ *
+ * ## Supported Formats
+ *
+ * - **JSON**: Machine-readable JSON output
+ * - **Checklist**: Simple checkbox format
+ * - **Structured**: Hierarchical format with project groupings
+ */
+
 use clap::ValueEnum;
 use crate::models::{TaskOutput, Project, Filter};
 
@@ -30,38 +43,41 @@ fn format_checklist(tasks: &[TaskOutput]) -> String {
     tasks.iter()
         .map(|task| {
             let checkbox = if task.is_completed { "[x]" } else { "[ ]" };
-            let project = task.project_name.as_ref()
-                .map(|p| format!(" ({})", p))
-                .unwrap_or_default();
-            format!("- {} {}{}", checkbox, task.content, project)
+            if let Some(ref project) = task.project_name {
+                format!("- {} {} ({})", checkbox, task.content, project)
+            } else {
+                format!("- {} {}", checkbox, task.content)
+            }
         })
         .collect::<Vec<_>>()
         .join("\n")
 }
 
 fn format_structured(tasks: &[TaskOutput]) -> String {
-    let mut grouped: std::collections::HashMap<&str, Vec<&TaskOutput>> =
-        std::collections::HashMap::new();
+    use std::collections::HashMap;
+
+    let mut grouped: HashMap<&str, Vec<&TaskOutput>> = HashMap::new();
 
     for task in tasks {
         let project = task.project_name.as_deref().unwrap_or("Inbox");
-        grouped.entry(project).or_insert_with(Vec::new).push(task);
+        grouped.entry(project).or_default().push(task);
     }
 
     let mut projects: Vec<_> = grouped.into_iter().collect();
-    projects.sort_by(|a, b| a.0.cmp(&b.0));
+    projects.sort_by(|a, b| a.0.cmp(b.0));
 
-    projects.iter()
+    projects
+        .iter()
         .map(|(project, tasks)| {
-            let tasks_str = tasks.iter()
+            let tasks_str = tasks
+                .iter()
                 .map(|task| {
                     let checkbox = if task.is_completed { "[x]" } else { "[ ]" };
-                    let priority = if task.priority > 1 {
-                        format!(" (Priority: {})", task.priority)
+                    if task.priority > 1 {
+                        format!("- {} {} (Priority: {})", checkbox, task.content, task.priority)
                     } else {
-                        String::new()
-                    };
-                    format!("- {} {}{}", checkbox, task.content, priority)
+                        format!("- {} {}", checkbox, task.content)
+                    }
                 })
                 .collect::<Vec<_>>()
                 .join("\n");
@@ -97,23 +113,28 @@ fn format_projects_checklist(projects: &[Project]) -> String {
 }
 
 fn format_projects_structured(projects: &[Project]) -> String {
-    projects.iter()
+    projects
+        .iter()
         .map(|project| {
-            let meta = vec![
-                if project.is_favorite { Some("⭐ Favorite".to_string()) } else { None },
-                if project.is_shared { Some("👥 Shared".to_string()) } else { None },
-            ]
-            .into_iter()
-            .flatten()
-            .collect::<Vec<_>>()
-            .join(" | ");
+            let mut meta_parts = Vec::new();
+            if project.is_favorite {
+                meta_parts.push("⭐ Favorite");
+            }
+            if project.is_shared {
+                meta_parts.push("👥 Shared");
+            }
+            let meta = if meta_parts.is_empty() {
+                String::new()
+            } else {
+                format!("**Meta:** {} | ", meta_parts.join(" | "))
+            };
 
             format!(
                 "### {}\n\n**Color:** {}\n**ID:** {}\n{}",
                 project.name,
                 project.color,
                 project.id,
-                if meta.is_empty() { String::new() } else { format!("**Meta:** {}\n", meta) }
+                meta
             )
         })
         .collect::<Vec<_>>()

@@ -1,3 +1,8 @@
+//! # Configuration
+//!
+//! Manages application configuration, including API token storage and retrieval.
+//! Configuration is stored in the platform-specific config directory.
+
 use crate::error::{Result, TodoError};
 use serde::{Deserialize, Serialize};
 use std::fs;
