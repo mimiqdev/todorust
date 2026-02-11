@@ -92,6 +92,10 @@ pub struct SyncSection {
     #[serde(default)]
     pub is_deleted: bool,
     pub created_at: String,
+    #[serde(default)]
+    pub archived_at: Option<String>,
+    #[serde(default)]
+    pub is_collapsed: Option<bool>,
 }
 
 /// Sync 标签

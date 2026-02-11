@@ -108,7 +108,13 @@ impl CommandBuilder {
     }
 
     /// 添加 project_update 命令 - 更新项目
-    pub fn project_update(&mut self, id: &str, name: Option<&str>, color: Option<&str>, favorite: Option<bool>) -> &mut Self {
+    pub fn project_update(
+        &mut self,
+        id: &str,
+        name: Option<&str>,
+        color: Option<&str>,
+        favorite: Option<bool>,
+    ) -> &mut Self {
         let mut args = serde_json::json!({ "id": id });
         if let Some(n) = name {
             args["name"] = serde_json::json!(n);
@@ -168,6 +174,53 @@ impl CommandBuilder {
             uuid: Self::generate_uuid(),
             temp_id: None,
             args: serde_json::json!({ "id": id }),
+        });
+        self
+    }
+
+    /// 添加 section_archive 命令 - 归档分区
+    pub fn section_archive(&mut self, id: &str) -> &mut Self {
+        self.commands.push(Command {
+            type_: "section_archive".to_string(),
+            uuid: Self::generate_uuid(),
+            temp_id: None,
+            args: serde_json::json!({ "id": id }),
+        });
+        self
+    }
+
+    /// 添加 section_unarchive 命令 - 取消归档分区
+    pub fn section_unarchive(&mut self, id: &str) -> &mut Self {
+        self.commands.push(Command {
+            type_: "section_unarchive".to_string(),
+            uuid: Self::generate_uuid(),
+            temp_id: None,
+            args: serde_json::json!({ "id": id }),
+        });
+        self
+    }
+
+    /// 添加 section_move 命令 - 移动分区到项目
+    pub fn section_move(&mut self, id: &str, project_id: &str) -> &mut Self {
+        self.commands.push(Command {
+            type_: "section_move".to_string(),
+            uuid: Self::generate_uuid(),
+            temp_id: None,
+            args: serde_json::json!({
+                "id": id,
+                "project_id": project_id
+            }),
+        });
+        self
+    }
+
+    /// 添加 section_reorder 命令 - 批量重新排序分区
+    pub fn section_reorder(&mut self, sections: &[SectionOrderArgs]) -> &mut Self {
+        self.commands.push(Command {
+            type_: "section_reorder".to_string(),
+            uuid: Self::generate_uuid(),
+            temp_id: None,
+            args: serde_json::json!({ "sections": sections }),
         });
         self
     }
@@ -257,7 +310,13 @@ impl CommandBuilder {
     }
 
     /// 添加 filter_update 命令 - 更新过滤器
-    pub fn filter_update(&mut self, id: &str, name: Option<&str>, query: Option<&str>, color: Option<&str>) -> &mut Self {
+    pub fn filter_update(
+        &mut self,
+        id: &str,
+        name: Option<&str>,
+        query: Option<&str>,
+        color: Option<&str>,
+    ) -> &mut Self {
         let mut args = serde_json::json!({ "id": id });
         if let Some(n) = name {
             args["name"] = serde_json::json!(n);
@@ -518,12 +577,29 @@ pub struct FilterAddArgs {
 
 impl FilterAddArgs {
     pub fn new(name: String, query: String) -> Self {
-        Self { name, query, color: None }
+        Self {
+            name,
+            query,
+            color: None,
+        }
     }
 
     pub fn color(mut self, color: Option<String>) -> Self {
         self.color = color;
         self
+    }
+}
+
+/// section_reorder 命令参数
+#[derive(Debug, Serialize)]
+pub struct SectionOrderArgs {
+    pub id: String,
+    pub order: i64,
+}
+
+impl SectionOrderArgs {
+    pub fn new(id: String, order: i64) -> Self {
+        Self { id, order }
     }
 }
 
@@ -614,7 +690,9 @@ mod tests {
     #[test]
     fn test_item_update_command() {
         let mut builder = CommandBuilder::new();
-        builder.item_update(ItemUpdateArgs::new("123".to_string()).content(Some("Updated".to_string())));
+        builder.item_update(
+            ItemUpdateArgs::new("123".to_string()).content(Some("Updated".to_string())),
+        );
 
         let commands = builder.build();
         assert_eq!(commands.len(), 1);
@@ -663,6 +741,61 @@ mod tests {
 
         let cmd = &commands[0];
         assert_eq!(cmd.type_, "filter_update_orders");
+        assert!(cmd.temp_id.is_none());
+    }
+
+    #[test]
+    fn test_section_archive_command() {
+        let mut builder = CommandBuilder::new();
+        builder.section_archive("123");
+
+        let commands = builder.build();
+        assert_eq!(commands.len(), 1);
+
+        let cmd = &commands[0];
+        assert_eq!(cmd.type_, "section_archive");
+        assert!(cmd.temp_id.is_none());
+    }
+
+    #[test]
+    fn test_section_unarchive_command() {
+        let mut builder = CommandBuilder::new();
+        builder.section_unarchive("123");
+
+        let commands = builder.build();
+        assert_eq!(commands.len(), 1);
+
+        let cmd = &commands[0];
+        assert_eq!(cmd.type_, "section_unarchive");
+        assert!(cmd.temp_id.is_none());
+    }
+
+    #[test]
+    fn test_section_move_command() {
+        let mut builder = CommandBuilder::new();
+        builder.section_move("123", "456");
+
+        let commands = builder.build();
+        assert_eq!(commands.len(), 1);
+
+        let cmd = &commands[0];
+        assert_eq!(cmd.type_, "section_move");
+        assert!(cmd.temp_id.is_none());
+    }
+
+    #[test]
+    fn test_section_reorder_command() {
+        let mut builder = CommandBuilder::new();
+        builder.section_reorder(&[
+            SectionOrderArgs::new("123".to_string(), 1),
+            SectionOrderArgs::new("456".to_string(), 2),
+        ]);
+
+        let commands = builder.build();
+        assert_eq!(commands.len(), 1);
+
+        let cmd = &commands[0];
+        assert_eq!(cmd.type_, "section_reorder");
         assert!(cmd.temp_id.is_none());
     }
 }
