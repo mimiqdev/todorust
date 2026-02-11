@@ -46,14 +46,14 @@ impl TodoistClient {
             .await?;
 
         let status = response.status();
-        let response_text = response.text().await?;
+        let _response_text = response.text().await?;
 
         if !status.is_success() {
-            return Err(TodoError::Http(status.as_u16(), response_text));
+            return Err(TodoError::Http(status.as_u16()));
         }
 
-        let projects_response: ProjectsResponse = serde_json::from_str(&response_text)
-            .map_err(|e| TodoError::Api(format!("Failed to parse projects response: {}\nResponse: {}", e, response_text)))?;
+        let projects_response: ProjectsResponse = serde_json::from_str(&_response_text)
+            .map_err(|e| TodoError::Api(format!("Failed to parse projects response: {}\nResponse: {}", e, _response_text)))?;
         Ok(projects_response.results)
     }
 
@@ -115,7 +115,7 @@ impl TodoistClient {
         let response_text = response.text().await?;
 
         if !status.is_success() {
-            return Err(TodoError::Http(status.as_u16(), response_text));
+            return Err(TodoError::Http(status.as_u16()));
         }
 
         // Parse response - completed endpoint uses "items", others use "results"
@@ -184,7 +184,7 @@ impl TodoistClient {
         let response_text = response.text().await?;
 
         if !status.is_success() {
-            return Err(TodoError::Http(status.as_u16(), response_text));
+            return Err(TodoError::Http(status.as_u16()));
         }
 
         let sync_data: SyncResponse = serde_json::from_str(&response_text)
@@ -223,7 +223,7 @@ impl TodoistClient {
         let response_text = response.text().await?;
 
         if !status.is_success() {
-            return Err(crate::error::TodoError::Http(status.as_u16(), response_text));
+            return Err(crate::error::TodoError::Http(status.as_u16()));
         }
 
         let task: Task = serde_json::from_str(&response_text)
@@ -248,7 +248,7 @@ impl TodoistClient {
         if status.is_success() || status.as_u16() == 404 {
             Ok(())
         } else {
-            Err(TodoError::Http(status.as_u16(), response_text))
+            Err(TodoError::Http(status.as_u16()))
         }
     }
 
@@ -267,7 +267,7 @@ impl TodoistClient {
         if status.is_success() || status.as_u16() == 204 {
             Ok(())
         } else {
-            Err(TodoError::Http(status.as_u16(), response_text))
+            Err(TodoError::Http(status.as_u16()))
         }
     }
 
@@ -286,7 +286,7 @@ impl TodoistClient {
         if status.is_success() || status.as_u16() == 204 {
             Ok(())
         } else {
-            Err(TodoError::Http(status.as_u16(), response_text))
+            Err(TodoError::Http(status.as_u16()))
         }
     }
 }

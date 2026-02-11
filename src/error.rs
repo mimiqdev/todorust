@@ -18,14 +18,17 @@ pub enum TodoError {
     #[error("API error: {0}")]
     Api(String),
 
-    #[error("HTTP error {0}: {1}")]
-    Http(u16, String),
+    #[error("HTTP error {0}")]
+    Http(u16),
 
     #[error("Invalid input: {0}")]
     InvalidInput(String),
 
     #[error("Config error: Configuration not found. Run `todorust init --api-token YOUR_TOKEN` to configure.")]
     ConfigNotFound,
+
+    #[error("Serialize error: {0}")]
+    Serialize(String),
 }
 
 impl From<serde_json::Error> for TodoError {

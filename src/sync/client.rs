@@ -92,7 +92,7 @@ impl TodoistSyncClient {
         let body = response.text().await?;
 
         if !status.is_success() {
-            return Err(TodoError::Http(status.as_u16(), body));
+            return Err(TodoError::Http(status.as_u16()));
         }
 
         serde_json::from_str(&body)
@@ -127,7 +127,7 @@ impl TodoistSyncClient {
         let body = response.text().await?;
 
         if !status.is_success() {
-            return Err(TodoError::Http(status.as_u16(), body));
+            return Err(TodoError::Http(status.as_u16()));
         }
 
         serde_json::from_str(&body)
@@ -226,17 +226,15 @@ impl TodoistSyncClient {
             .color(color.map(|c| c.to_string()))
             .favorite(favorite);
 
-        let mut builder = CommandBuilder::new();
-        builder.project_add(args);
+        let builder = CommandBuilder::new()
+            .project_add(args);
 
         let response = self.execute(builder).await?;
         
         // 提取真实 ID
-        if let Some((temp_id, real_id)) = response.temp_id_mapping.iter().next() {
-            return Ok(real_id.clone());
-        }
-        
-        Err(TodoError::Api("Failed to get project ID from response".to_string()))
+        response.temp_id_mapping.values().next()
+            .ok_or_else(|| TodoError::Api("No ID returned".to_string()))
+            .map(|s| s.clone())
     }
 
     /// 添加任务 (使用 Sync API)
@@ -258,17 +256,15 @@ impl TodoistSyncClient {
             .priority(priority)
             .labels(labels.map(|ls| ls.iter().map(|&s| s.to_string()).collect()));
 
-        let mut builder = CommandBuilder::new();
-        builder.item_add(args);
+        let builder = CommandBuilder::new()
+            .item_add(args);
 
         let response = self.execute(builder).await?;
         
         // 提取真实 ID
-        if let Some((temp_id, real_id)) = response.temp_id_mapping.iter().next() {
-            return Ok(real_id.clone());
-        }
-        
-        Err(TodoError::Api("Failed to get task ID from response".to_string()))
+        response.temp_id_mapping.values().next()
+            .ok_or_else(|| TodoError::Api("No ID returned".to_string()))
+            .map(|s| s.clone())
     }
 
     /// 更新任务 (使用 Sync API)
@@ -288,8 +284,8 @@ impl TodoistSyncClient {
             .due_string(due_string.map(|d| d.to_string()))
             .labels(labels.map(|ls| ls.iter().map(|&s| s.to_string()).collect()));
 
-        let mut builder = CommandBuilder::new();
-        builder.item_update(args);
+        let builder = CommandBuilder::new()
+            .item_update(args);
 
         self.execute(builder).await?;
         Ok(())
@@ -297,8 +293,8 @@ impl TodoistSyncClient {
 
     /// 完成任务 (使用 Sync API)
     pub async fn complete_task(&self, id: &str) -> Result<(), TodoError> {
-        let mut builder = CommandBuilder::new();
-        builder.item_complete(id);
+        let builder = CommandBuilder::new()
+            .item_complete(id);
 
         self.execute(builder).await?;
         Ok(())
@@ -306,8 +302,8 @@ impl TodoistSyncClient {
 
     /// 删除任务 (使用 Sync API)
     pub async fn delete_task(&self, id: &str) -> Result<(), TodoError> {
-        let mut builder = CommandBuilder::new();
-        builder.item_delete(id);
+        let builder = CommandBuilder::new()
+            .item_delete(id);
 
         self.execute(builder).await?;
         Ok(())
@@ -321,23 +317,21 @@ impl TodoistSyncClient {
     ) -> Result<String, TodoError> {
         let args = super::commands::SectionAddArgs::new(name.to_string(), project_id.to_string());
 
-        let mut builder = CommandBuilder::new();
-        builder.section_add(args);
+        let builder = CommandBuilder::new()
+            .section_add(args);
 
         let response = self.execute(builder).await?;
         
         // 提取真实 ID
-        if let Some((temp_id, real_id)) = response.temp_id_mapping.iter().next() {
-            return Ok(real_id.clone());
-        }
-        
-        Err(TodoError::Api("Failed to get section ID from response".to_string()))
+        response.temp_id_mapping.values().next()
+            .ok_or_else(|| TodoError::Api("No ID returned".to_string()))
+            .map(|s| s.clone())
     }
 
     /// 更新分区 (使用 Sync API)
     pub async fn update_section(&self, id: &str, name: &str) -> Result<(), TodoError> {
-        let mut builder = CommandBuilder::new();
-        builder.section_update(id, name);
+        let builder = CommandBuilder::new()
+            .section_update(id, name);
 
         self.execute(builder).await?;
         Ok(())
@@ -345,8 +339,8 @@ impl TodoistSyncClient {
 
     /// 删除分区 (使用 Sync API)
     pub async fn delete_section(&self, id: &str) -> Result<(), TodoError> {
-        let mut builder = CommandBuilder::new();
-        builder.section_delete(id);
+        let builder = CommandBuilder::new()
+            .section_delete(id);
 
         self.execute(builder).await?;
         Ok(())
@@ -357,17 +351,15 @@ impl TodoistSyncClient {
         let args = super::commands::LabelAddArgs::new(name.to_string())
             .color(color.map(|c| c.to_string()));
 
-        let mut builder = CommandBuilder::new();
-        builder.label_add(args);
+        let builder = CommandBuilder::new()
+            .label_add(args);
 
         let response = self.execute(builder).await?;
         
         // 提取真实 ID
-        if let Some((temp_id, real_id)) = response.temp_id_mapping.iter().next() {
-            return Ok(real_id.clone());
-        }
-        
-        Err(TodoError::Api("Failed to get label ID from response".to_string()))
+        response.temp_id_mapping.values().next()
+            .ok_or_else(|| TodoError::Api("No ID returned".to_string()))
+            .map(|s| s.clone())
     }
 
     /// 更新标签 (使用 Sync API)
@@ -377,8 +369,8 @@ impl TodoistSyncClient {
         name: Option<&str>,
         color: Option<&str>,
     ) -> Result<(), TodoError> {
-        let mut builder = CommandBuilder::new();
-        builder.label_update(id, name, color);
+        let builder = CommandBuilder::new()
+            .label_update(id, name, color);
 
         self.execute(builder).await?;
         Ok(())
@@ -386,8 +378,8 @@ impl TodoistSyncClient {
 
     /// 删除标签 (使用 Sync API)
     pub async fn delete_label(&self, id: &str) -> Result<(), TodoError> {
-        let mut builder = CommandBuilder::new();
-        builder.label_delete(id);
+        let builder = CommandBuilder::new()
+            .label_delete(id);
 
         self.execute(builder).await?;
         Ok(())
@@ -400,8 +392,8 @@ impl TodoistSyncClient {
             .map(|(id, order)| super::commands::FilterOrderArgs::new(id.to_string(), *order))
             .collect();
 
-        let mut builder = CommandBuilder::new();
-        builder.filter_update_orders(&filter_args);
+        let builder = CommandBuilder::new()
+            .filter_update_orders(&filter_args);
 
         self.execute(builder).await?;
         Ok(())
@@ -417,17 +409,15 @@ impl TodoistSyncClient {
         let args = super::commands::FilterAddArgs::new(name.to_string(), query.to_string())
             .color(color.map(|c| c.to_string()));
 
-        let mut builder = CommandBuilder::new();
-        builder.filter_add(args);
+        let builder = CommandBuilder::new()
+            .filter_add(args);
 
         let response = self.execute(builder).await?;
         
         // 提取真实 ID
-        if let Some((temp_id, real_id)) = response.temp_id_mapping.iter().next() {
-            return Ok(real_id.clone());
-        }
-        
-        Err(TodoError::Api("Failed to get filter ID from response".to_string()))
+        response.temp_id_mapping.values().next()
+            .ok_or_else(|| TodoError::Api("No ID returned".to_string()))
+            .map(|s| s.clone())
     }
 
     /// 更新过滤器 (使用 Sync API)
@@ -438,8 +428,8 @@ impl TodoistSyncClient {
         query: Option<&str>,
         color: Option<&str>,
     ) -> Result<(), TodoError> {
-        let mut builder = CommandBuilder::new();
-        builder.filter_update(id, name, query, color);
+        let builder = CommandBuilder::new()
+            .filter_update(id, name, query, color);
 
         self.execute(builder).await?;
         Ok(())
@@ -447,8 +437,8 @@ impl TodoistSyncClient {
 
     /// 删除过滤器 (使用 Sync API)
     pub async fn delete_filter(&self, id: &str) -> Result<(), TodoError> {
-        let mut builder = CommandBuilder::new();
-        builder.filter_delete(id);
+        let builder = CommandBuilder::new()
+            .filter_delete(id);
 
         self.execute(builder).await?;
         Ok(())

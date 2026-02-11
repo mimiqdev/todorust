@@ -25,6 +25,8 @@
 use serde::Serialize;
 use uuid::Uuid;
 
+use crate::error::TodoError;
+
 /// Sync API 命令结构
 #[derive(Debug, Serialize)]
 pub struct Command {
@@ -59,18 +61,20 @@ impl CommandBuilder {
     }
 
     /// 添加 item_add 命令 - 创建任务
-    pub fn item_add(&mut self, args: ItemAddArgs) -> &mut Self {
+    pub fn item_add(mut self, args: ItemAddArgs) -> Self {
         self.commands.push(Command {
             type_: "item_add".to_string(),
             uuid: Self::generate_uuid(),
             temp_id: Some(Self::generate_temp_id()),
-            args: serde_json::to_value(args).unwrap(),
+            args: serde_json::to_value(args)
+                .map_err(|e| TodoError::Serialize(e.to_string()))
+                .unwrap(),
         });
         self
     }
 
     /// 添加 item_close 命令 - 完成任务
-    pub fn item_close(&mut self, id: &str) -> &mut Self {
+    pub fn item_close(mut self, id: &str) -> Self {
         self.commands.push(Command {
             type_: "item_close".to_string(),
             uuid: Self::generate_uuid(),
@@ -81,7 +85,7 @@ impl CommandBuilder {
     }
 
     /// 添加 item_reopen 命令 - 重新打开任务
-    pub fn item_reopen(&mut self, id: &str) -> &mut Self {
+    pub fn item_reopen(mut self, id: &str) -> Self {
         self.commands.push(Command {
             type_: "item_reopen".to_string(),
             uuid: Self::generate_uuid(),
@@ -92,7 +96,7 @@ impl CommandBuilder {
     }
 
     /// 添加 item_delete 命令 - 删除任务
-    pub fn item_delete(&mut self, id: &str) -> &mut Self {
+    pub fn item_delete(mut self, id: &str) -> Self {
         self.commands.push(Command {
             type_: "item_delete".to_string(),
             uuid: Self::generate_uuid(),
@@ -103,7 +107,7 @@ impl CommandBuilder {
     }
 
     /// 添加 item_move 命令 - 移动任务
-    pub fn item_move(&mut self, id: &str, project_id: &str, section_id: Option<&str>) -> &mut Self {
+    pub fn item_move(mut self, id: &str, project_id: &str, section_id: Option<&str>) -> Self {
         let mut args = serde_json::json!({
             "id": id,
             "project_id": project_id
@@ -121,24 +125,26 @@ impl CommandBuilder {
     }
 
     /// 添加 project_add 命令 - 创建项目
-    pub fn project_add(&mut self, args: ProjectAddArgs) -> &mut Self {
+    pub fn project_add(mut self, args: ProjectAddArgs) -> Self {
         self.commands.push(Command {
             type_: "project_add".to_string(),
             uuid: Self::generate_uuid(),
             temp_id: Some(Self::generate_temp_id()),
-            args: serde_json::to_value(args).unwrap(),
+            args: serde_json::to_value(args)
+                .map_err(|e| TodoError::Serialize(e.to_string()))
+                .unwrap(),
         });
         self
     }
 
     /// 添加 project_update 命令 - 更新项目
     pub fn project_update(
-        &mut self,
+        mut self,
         id: &str,
         name: Option<&str>,
         color: Option<&str>,
         favorite: Option<bool>,
-    ) -> &mut Self {
+    ) -> Self {
         let mut args = serde_json::json!({ "id": id });
         if let Some(n) = name {
             args["name"] = serde_json::json!(n);
@@ -159,7 +165,7 @@ impl CommandBuilder {
     }
 
     /// 添加 project_delete 命令 - 删除项目
-    pub fn project_delete(&mut self, id: &str) -> &mut Self {
+    pub fn project_delete(mut self, id: &str) -> Self {
         self.commands.push(Command {
             type_: "project_delete".to_string(),
             uuid: Self::generate_uuid(),
@@ -170,18 +176,20 @@ impl CommandBuilder {
     }
 
     /// 添加 section_add 命令 - 创建分区
-    pub fn section_add(&mut self, args: SectionAddArgs) -> &mut Self {
+    pub fn section_add(mut self, args: SectionAddArgs) -> Self {
         self.commands.push(Command {
             type_: "section_add".to_string(),
             uuid: Self::generate_uuid(),
             temp_id: Some(Self::generate_temp_id()),
-            args: serde_json::to_value(args).unwrap(),
+            args: serde_json::to_value(args)
+                .map_err(|e| TodoError::Serialize(e.to_string()))
+                .unwrap(),
         });
         self
     }
 
     /// 添加 section_update 命令 - 更新分区
-    pub fn section_update(&mut self, id: &str, name: &str) -> &mut Self {
+    pub fn section_update(mut self, id: &str, name: &str) -> Self {
         self.commands.push(Command {
             type_: "section_update".to_string(),
             uuid: Self::generate_uuid(),
@@ -192,7 +200,7 @@ impl CommandBuilder {
     }
 
     /// 添加 section_delete 命令 - 删除分区
-    pub fn section_delete(&mut self, id: &str) -> &mut Self {
+    pub fn section_delete(mut self, id: &str) -> Self {
         self.commands.push(Command {
             type_: "section_delete".to_string(),
             uuid: Self::generate_uuid(),
@@ -203,7 +211,7 @@ impl CommandBuilder {
     }
 
     /// 添加 section_archive 命令 - 归档分区
-    pub fn section_archive(&mut self, id: &str) -> &mut Self {
+    pub fn section_archive(mut self, id: &str) -> Self {
         self.commands.push(Command {
             type_: "section_archive".to_string(),
             uuid: Self::generate_uuid(),
@@ -214,7 +222,7 @@ impl CommandBuilder {
     }
 
     /// 添加 section_unarchive 命令 - 取消归档分区
-    pub fn section_unarchive(&mut self, id: &str) -> &mut Self {
+    pub fn section_unarchive(mut self, id: &str) -> Self {
         self.commands.push(Command {
             type_: "section_unarchive".to_string(),
             uuid: Self::generate_uuid(),
@@ -225,7 +233,7 @@ impl CommandBuilder {
     }
 
     /// 添加 section_move 命令 - 移动分区到项目
-    pub fn section_move(&mut self, id: &str, project_id: &str) -> &mut Self {
+    pub fn section_move(mut self, id: &str, project_id: &str) -> Self {
         self.commands.push(Command {
             type_: "section_move".to_string(),
             uuid: Self::generate_uuid(),
@@ -239,7 +247,7 @@ impl CommandBuilder {
     }
 
     /// 添加 section_reorder 命令 - 批量重新排序分区
-    pub fn section_reorder(&mut self, sections: &[SectionOrderArgs]) -> &mut Self {
+    pub fn section_reorder(mut self, sections: &[SectionOrderArgs]) -> Self {
         self.commands.push(Command {
             type_: "section_reorder".to_string(),
             uuid: Self::generate_uuid(),
@@ -250,7 +258,7 @@ impl CommandBuilder {
     }
 
     /// 添加 item_complete 命令 - 完成任务（标记为已完成）
-    pub fn item_complete(&mut self, id: &str) -> &mut Self {
+    pub fn item_complete(mut self, id: &str) -> Self {
         self.commands.push(Command {
             type_: "item_complete".to_string(),
             uuid: Self::generate_uuid(),
@@ -261,29 +269,33 @@ impl CommandBuilder {
     }
 
     /// 添加 item_update 命令 - 更新任务
-    pub fn item_update(&mut self, args: ItemUpdateArgs) -> &mut Self {
+    pub fn item_update(mut self, args: ItemUpdateArgs) -> Self {
         self.commands.push(Command {
             type_: "item_update".to_string(),
             uuid: Self::generate_uuid(),
             temp_id: None,
-            args: serde_json::to_value(args).unwrap(),
+            args: serde_json::to_value(args)
+                .map_err(|e| TodoError::Serialize(e.to_string()))
+                .unwrap(),
         });
         self
     }
 
     /// 添加 label_add 命令 - 创建标签
-    pub fn label_add(&mut self, args: LabelAddArgs) -> &mut Self {
+    pub fn label_add(mut self, args: LabelAddArgs) -> Self {
         self.commands.push(Command {
             type_: "label_add".to_string(),
             uuid: Self::generate_uuid(),
             temp_id: Some(Self::generate_temp_id()),
-            args: serde_json::to_value(args).unwrap(),
+            args: serde_json::to_value(args)
+                .map_err(|e| TodoError::Serialize(e.to_string()))
+                .unwrap(),
         });
         self
     }
 
     /// 添加 label_update 命令 - 更新标签
-    pub fn label_update(&mut self, id: &str, name: Option<&str>, color: Option<&str>) -> &mut Self {
+    pub fn label_update(mut self, id: &str, name: Option<&str>, color: Option<&str>) -> Self {
         let mut args = serde_json::json!({ "id": id });
         if let Some(n) = name {
             args["name"] = serde_json::json!(n);
@@ -301,7 +313,7 @@ impl CommandBuilder {
     }
 
     /// 添加 label_delete 命令 - 删除标签
-    pub fn label_delete(&mut self, id: &str) -> &mut Self {
+    pub fn label_delete(mut self, id: &str) -> Self {
         self.commands.push(Command {
             type_: "label_delete".to_string(),
             uuid: Self::generate_uuid(),
@@ -312,7 +324,7 @@ impl CommandBuilder {
     }
 
     /// 添加 filter_update_orders 命令 - 更新过滤器顺序
-    pub fn filter_update_orders(&mut self, filters: &[FilterOrderArgs]) -> &mut Self {
+    pub fn filter_update_orders(mut self, filters: &[FilterOrderArgs]) -> Self {
         self.commands.push(Command {
             type_: "filter_update_orders".to_string(),
             uuid: Self::generate_uuid(),
@@ -323,24 +335,26 @@ impl CommandBuilder {
     }
 
     /// 添加 filter_add 命令 - 创建过滤器
-    pub fn filter_add(&mut self, args: FilterAddArgs) -> &mut Self {
+    pub fn filter_add(mut self, args: FilterAddArgs) -> Self {
         self.commands.push(Command {
             type_: "filter_add".to_string(),
             uuid: Self::generate_uuid(),
             temp_id: Some(Self::generate_temp_id()),
-            args: serde_json::to_value(args).unwrap(),
+            args: serde_json::to_value(args)
+                .map_err(|e| TodoError::Serialize(e.to_string()))
+                .unwrap(),
         });
         self
     }
 
     /// 添加 filter_update 命令 - 更新过滤器
     pub fn filter_update(
-        &mut self,
+        mut self,
         id: &str,
         name: Option<&str>,
         query: Option<&str>,
         color: Option<&str>,
-    ) -> &mut Self {
+    ) -> Self {
         let mut args = serde_json::json!({ "id": id });
         if let Some(n) = name {
             args["name"] = serde_json::json!(n);
@@ -361,7 +375,7 @@ impl CommandBuilder {
     }
 
     /// 添加 filter_delete 命令 - 删除过滤器
-    pub fn filter_delete(&mut self, id: &str) -> &mut Self {
+    pub fn filter_delete(mut self, id: &str) -> Self {
         self.commands.push(Command {
             type_: "filter_delete".to_string(),
             uuid: Self::generate_uuid(),
@@ -639,10 +653,9 @@ mod tests {
 
     #[test]
     fn test_item_add_command() {
-        let mut builder = CommandBuilder::new();
-        builder.item_add(ItemAddArgs::new("Test task".to_string()));
-
-        let commands = builder.build();
+        let commands = CommandBuilder::new()
+            .item_add(ItemAddArgs::new("Test task".to_string()))
+            .build();
         assert_eq!(commands.len(), 1);
 
         let cmd = &commands[0];
@@ -653,10 +666,9 @@ mod tests {
 
     #[test]
     fn test_item_close_command() {
-        let mut builder = CommandBuilder::new();
-        builder.item_close("123");
-
-        let commands = builder.build();
+        let commands = CommandBuilder::new()
+            .item_close("123")
+            .build();
         assert_eq!(commands.len(), 1);
 
         let cmd = &commands[0];
@@ -666,44 +678,37 @@ mod tests {
 
     #[test]
     fn test_multiple_commands() {
-        let mut builder = CommandBuilder::new();
-        builder
+        let commands = CommandBuilder::new()
             .item_add(ItemAddArgs::new("Task 1".to_string()))
             .item_add(ItemAddArgs::new("Task 2".to_string()))
-            .item_close("456");
-
-        let commands = builder.build();
+            .item_close("456")
+            .build();
         assert_eq!(commands.len(), 3);
     }
 
     #[test]
     fn test_uuid_uniqueness() {
-        let mut builder = CommandBuilder::new();
-        builder
+        let commands = CommandBuilder::new()
             .item_add(ItemAddArgs::new("Task 1".to_string()))
-            .item_add(ItemAddArgs::new("Task 2".to_string()));
-
-        let commands = builder.build();
+            .item_add(ItemAddArgs::new("Task 2".to_string()))
+            .build();
         assert_ne!(commands[0].uuid, commands[1].uuid);
     }
 
     #[test]
     fn test_temp_id_uniqueness() {
-        let mut builder = CommandBuilder::new();
-        builder
+        let commands = CommandBuilder::new()
             .item_add(ItemAddArgs::new("Task 1".to_string()))
-            .item_add(ItemAddArgs::new("Task 2".to_string()));
-
-        let commands = builder.build();
+            .item_add(ItemAddArgs::new("Task 2".to_string()))
+            .build();
         assert_ne!(commands[0].temp_id, commands[1].temp_id);
     }
 
     #[test]
     fn test_item_complete_command() {
-        let mut builder = CommandBuilder::new();
-        builder.item_complete("123");
-
-        let commands = builder.build();
+        let commands = CommandBuilder::new()
+            .item_complete("123")
+            .build();
         assert_eq!(commands.len(), 1);
 
         let cmd = &commands[0];
@@ -713,12 +718,11 @@ mod tests {
 
     #[test]
     fn test_item_update_command() {
-        let mut builder = CommandBuilder::new();
-        builder.item_update(
-            ItemUpdateArgs::new("123".to_string()).content(Some("Updated".to_string())),
-        );
-
-        let commands = builder.build();
+        let commands = CommandBuilder::new()
+            .item_update(
+                ItemUpdateArgs::new("123".to_string()).content(Some("Updated".to_string())),
+            )
+            .build();
         assert_eq!(commands.len(), 1);
 
         let cmd = &commands[0];
@@ -728,10 +732,9 @@ mod tests {
 
     #[test]
     fn test_label_add_command() {
-        let mut builder = CommandBuilder::new();
-        builder.label_add(LabelAddArgs::new("urgent".to_string()).color(Some("red".to_string())));
-
-        let commands = builder.build();
+        let commands = CommandBuilder::new()
+            .label_add(LabelAddArgs::new("urgent".to_string()).color(Some("red".to_string())))
+            .build();
         assert_eq!(commands.len(), 1);
 
         let cmd = &commands[0];
@@ -741,10 +744,9 @@ mod tests {
 
     #[test]
     fn test_label_delete_command() {
-        let mut builder = CommandBuilder::new();
-        builder.label_delete("456");
-
-        let commands = builder.build();
+        let commands = CommandBuilder::new()
+            .label_delete("456")
+            .build();
         assert_eq!(commands.len(), 1);
 
         let cmd = &commands[0];
@@ -754,13 +756,12 @@ mod tests {
 
     #[test]
     fn test_filter_update_orders_command() {
-        let mut builder = CommandBuilder::new();
-        builder.filter_update_orders(&[
-            FilterOrderArgs::new("123".to_string(), 1),
-            FilterOrderArgs::new("456".to_string(), 2),
-        ]);
-
-        let commands = builder.build();
+        let commands = CommandBuilder::new()
+            .filter_update_orders(&[
+                FilterOrderArgs::new("123".to_string(), 1),
+                FilterOrderArgs::new("456".to_string(), 2),
+            ])
+            .build();
         assert_eq!(commands.len(), 1);
 
         let cmd = &commands[0];
@@ -770,10 +771,9 @@ mod tests {
 
     #[test]
     fn test_section_archive_command() {
-        let mut builder = CommandBuilder::new();
-        builder.section_archive("123");
-
-        let commands = builder.build();
+        let commands = CommandBuilder::new()
+            .section_archive("123")
+            .build();
         assert_eq!(commands.len(), 1);
 
         let cmd = &commands[0];
@@ -783,10 +783,9 @@ mod tests {
 
     #[test]
     fn test_section_unarchive_command() {
-        let mut builder = CommandBuilder::new();
-        builder.section_unarchive("123");
-
-        let commands = builder.build();
+        let commands = CommandBuilder::new()
+            .section_unarchive("123")
+            .build();
         assert_eq!(commands.len(), 1);
 
         let cmd = &commands[0];
@@ -796,10 +795,9 @@ mod tests {
 
     #[test]
     fn test_section_move_command() {
-        let mut builder = CommandBuilder::new();
-        builder.section_move("123", "456");
-
-        let commands = builder.build();
+        let commands = CommandBuilder::new()
+            .section_move("123", "456")
+            .build();
         assert_eq!(commands.len(), 1);
 
         let cmd = &commands[0];
@@ -809,13 +807,12 @@ mod tests {
 
     #[test]
     fn test_section_reorder_command() {
-        let mut builder = CommandBuilder::new();
-        builder.section_reorder(&[
-            SectionOrderArgs::new("123".to_string(), 1),
-            SectionOrderArgs::new("456".to_string(), 2),
-        ]);
-
-        let commands = builder.build();
+        let commands = CommandBuilder::new()
+            .section_reorder(&[
+                SectionOrderArgs::new("123".to_string(), 1),
+                SectionOrderArgs::new("456".to_string(), 2),
+            ])
+            .build();
         assert_eq!(commands.len(), 1);
 
         let cmd = &commands[0];
