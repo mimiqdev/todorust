@@ -9,10 +9,10 @@ use thiserror::Error;
 
 #[derive(Error, Debug)]
 pub enum TodoError {
-    #[error("Configuration error: {0}")]
+    #[error("Config error: {0}")]
     Config(String),
 
-    #[error("API request failed: {0}")]
+    #[error("API request error: {0}")]
     Request(#[from] reqwest::Error),
 
     #[error("API error: {0}")]
@@ -24,7 +24,7 @@ pub enum TodoError {
     #[error("Invalid input: {0}")]
     InvalidInput(String),
 
-    #[error("Configuration not found. Run `todorust init --api-token YOUR_TOKEN` to configure.")]
+    #[error("Config error: Configuration not found. Run `todorust init --api-token YOUR_TOKEN` to configure.")]
     ConfigNotFound,
 }
 

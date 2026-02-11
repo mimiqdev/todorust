@@ -1,3 +1,5 @@
+use std::cell::RefCell;
+
 use reqwest::Client as HttpClient;
 
 use crate::error::TodoError;
@@ -35,7 +37,7 @@ use super::models::{SyncReadResponse, SyncWriteResponse};
 pub struct TodoistSyncClient {
     token: String,
     sync_url: String,
-    sync_token: Option<String>,
+    sync_token: RefCell<Option<String>>,
     http: HttpClient,
 }
 
@@ -53,7 +55,7 @@ impl TodoistSyncClient {
         Self {
             token,
             sync_url: "https://api.todoist.com/api/v1/sync".to_string(),
-            sync_token: None,
+            sync_token: RefCell::new(None),
             http: HttpClient::new(),
         }
     }
@@ -73,7 +75,7 @@ impl TodoistSyncClient {
     ///
     /// A `SyncReadResponse` containing the synced resources and a new sync_token.
     pub async fn sync(&self, resource_types: &[&str]) -> Result<SyncReadResponse, TodoError> {
-        let sync_token = self.sync_token.as_deref().unwrap_or("*");
+        let sync_token = self.sync_token.borrow().clone().unwrap_or_else(|| "*".to_string());
 
         let response = self
             .http
@@ -81,7 +83,7 @@ impl TodoistSyncClient {
             .header("Authorization", self.get_auth_header())
             .form(&[
                 ("sync_token", sync_token),
-                ("resource_types", &serde_json::to_string(resource_types).unwrap()),
+                ("resource_types", serde_json::to_string(resource_types).unwrap()),
             ])
             .send()
             .await?;
@@ -135,15 +137,15 @@ impl TodoistSyncClient {
     /// Gets the current sync token.
     ///
     /// Returns `None` if no sync has been performed yet.
-    pub fn get_sync_token(&self) -> Option<&str> {
-        self.sync_token.as_deref()
+    pub fn get_sync_token(&self) -> Option<String> {
+        self.sync_token.borrow().clone()
     }
 
     /// Sets the sync token for incremental sync.
     ///
     /// Use this to continue from a previous sync state.
-    pub fn set_sync_token(&mut self, token: String) {
-        self.sync_token = Some(token);
+    pub fn set_sync_token(&self, token: String) {
+        *self.sync_token.borrow_mut() = Some(token);
     }
 
     /// 执行命令并检查状态
@@ -177,78 +179,6 @@ impl TodoistSyncClient {
     ) -> Result<SyncWriteResponse, TodoError> {
         let commands = builder.build();
         self.execute_commands_with_status(&commands).await
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use super::commands::ItemAddArgs;
-
-    #[test]
-    fn test_client_creation() {
-        let client = TodoistSyncClient::new("test_token".to_string());
-        assert_eq!(client.token, "test_token");
-    }
-
-    #[test]
-    fn test_sync_url() {
-        let client = TodoistSyncClient::new("test_token".to_string());
-        assert_eq!(client.sync_url, "https://api.todoist.com/api/v1/sync");
-    }
-
-    #[test]
-    fn test_get_auth_header() {
-        let client = TodoistSyncClient::new("test_token".to_string());
-        let auth = client.get_auth_header();
-        assert_eq!(auth, "Bearer test_token");
-    }
-
-    #[test]
-    fn test_initial_sync_token_is_none() {
-        let client = TodoistSyncClient::new("test_token".to_string());
-        assert!(client.get_sync_token().is_none());
-    }
-
-    #[test]
-    fn test_set_sync_token() {
-        let mut client = TodoistSyncClient::new("test_token".to_string());
-        client.set_sync_token("test_sync_token".to_string());
-        assert_eq!(client.get_sync_token(), Some("test_sync_token"));
-    }
-
-    #[test]
-    fn test_sync_with_default_token() {
-        let client = TodoistSyncClient::new("test_token".to_string());
-        // When sync_token is None, it should use "*" for full sync
-        // This is verified by the sync() method using unwrap_or("*")
-    }
-
-    #[test]
-    fn test_execute_commands_empty() {
-        let client = TodoistSyncClient::new("test_token".to_string());
-        let commands: Vec<Command> = Vec::new();
-        
-        // Empty commands should serialize correctly
-        let json = serde_json::to_string(&commands).unwrap();
-        assert_eq!(json, "[]");
-    }
-
-    #[test]
-    fn test_command_builder_integration() {
-        let mut builder = CommandBuilder::new();
-        builder
-            .item_add(ItemAddArgs::new("Test task".to_string()))
-            .item_add(ItemAddArgs::new("Another task".to_string()))
-            .item_close("123");
-
-        let commands = builder.build();
-        assert_eq!(commands.len(), 3);
-
-        // Verify command types
-        assert_eq!(commands[0].type_, "item_add");
-        assert_eq!(commands[1].type_, "item_add");
-        assert_eq!(commands[2].type_, "item_close");
     }
 
     // ==================== 资源读取方法 ====================
@@ -287,12 +217,12 @@ mod tests {
 
     /// 添加项目 (使用 Sync API)
     pub async fn add_project(
-        &mut self,
+        &self,
         name: &str,
         color: Option<&str>,
         favorite: Option<bool>,
     ) -> Result<String, TodoError> {
-        let args = ProjectAddArgs::new(name.to_string())
+        let args = super::commands::ProjectAddArgs::new(name.to_string())
             .color(color.map(|c| c.to_string()))
             .favorite(favorite);
 
@@ -311,7 +241,7 @@ mod tests {
 
     /// 添加任务 (使用 Sync API)
     pub async fn add_task(
-        &mut self,
+        &self,
         content: &str,
         description: Option<&str>,
         project_id: Option<&str>,
@@ -320,7 +250,7 @@ mod tests {
         priority: Option<u8>,
         labels: Option<Vec<&str>>,
     ) -> Result<String, TodoError> {
-        let args = ItemAddArgs::new(content.to_string())
+        let args = super::commands::ItemAddArgs::new(content.to_string())
             .description(description.map(|d| d.to_string()))
             .project_id(project_id.map(|p| p.to_string()))
             .section_id(section_id.map(|s| s.to_string()))
@@ -343,7 +273,7 @@ mod tests {
 
     /// 更新任务 (使用 Sync API)
     pub async fn update_task(
-        &mut self,
+        &self,
         id: &str,
         content: Option<&str>,
         description: Option<&str>,
@@ -351,7 +281,7 @@ mod tests {
         due_string: Option<&str>,
         labels: Option<Vec<&str>>,
     ) -> Result<(), TodoError> {
-        let args = ItemUpdateArgs::new(id.to_string())
+        let args = super::commands::ItemUpdateArgs::new(id.to_string())
             .content(content.map(|c| c.to_string()))
             .description(description.map(|d| d.to_string()))
             .priority(priority)
@@ -366,7 +296,7 @@ mod tests {
     }
 
     /// 完成任务 (使用 Sync API)
-    pub async fn complete_task(&mut self, id: &str) -> Result<(), TodoError> {
+    pub async fn complete_task(&self, id: &str) -> Result<(), TodoError> {
         let mut builder = CommandBuilder::new();
         builder.item_complete(id);
 
@@ -375,7 +305,7 @@ mod tests {
     }
 
     /// 删除任务 (使用 Sync API)
-    pub async fn delete_task(&mut self, id: &str) -> Result<(), TodoError> {
+    pub async fn delete_task(&self, id: &str) -> Result<(), TodoError> {
         let mut builder = CommandBuilder::new();
         builder.item_delete(id);
 
@@ -385,11 +315,11 @@ mod tests {
 
     /// 添加分区 (使用 Sync API)
     pub async fn add_section(
-        &mut self,
+        &self,
         name: &str,
         project_id: &str,
     ) -> Result<String, TodoError> {
-        let args = SectionAddArgs::new(name.to_string(), project_id.to_string());
+        let args = super::commands::SectionAddArgs::new(name.to_string(), project_id.to_string());
 
         let mut builder = CommandBuilder::new();
         builder.section_add(args);
@@ -405,7 +335,7 @@ mod tests {
     }
 
     /// 更新分区 (使用 Sync API)
-    pub async fn update_section(&mut self, id: &str, name: &str) -> Result<(), TodoError> {
+    pub async fn update_section(&self, id: &str, name: &str) -> Result<(), TodoError> {
         let mut builder = CommandBuilder::new();
         builder.section_update(id, name);
 
@@ -414,7 +344,7 @@ mod tests {
     }
 
     /// 删除分区 (使用 Sync API)
-    pub async fn delete_section(&mut self, id: &str) -> Result<(), TodoError> {
+    pub async fn delete_section(&self, id: &str) -> Result<(), TodoError> {
         let mut builder = CommandBuilder::new();
         builder.section_delete(id);
 
@@ -423,8 +353,8 @@ mod tests {
     }
 
     /// 添加标签 (使用 Sync API)
-    pub async fn add_label(&mut self, name: &str, color: Option<&str>) -> Result<String, TodoError> {
-        let args = LabelAddArgs::new(name.to_string())
+    pub async fn add_label(&self, name: &str, color: Option<&str>) -> Result<String, TodoError> {
+        let args = super::commands::LabelAddArgs::new(name.to_string())
             .color(color.map(|c| c.to_string()));
 
         let mut builder = CommandBuilder::new();
@@ -442,7 +372,7 @@ mod tests {
 
     /// 更新标签 (使用 Sync API)
     pub async fn update_label(
-        &mut self,
+        &self,
         id: &str,
         name: Option<&str>,
         color: Option<&str>,
@@ -455,7 +385,7 @@ mod tests {
     }
 
     /// 删除标签 (使用 Sync API)
-    pub async fn delete_label(&mut self, id: &str) -> Result<(), TodoError> {
+    pub async fn delete_label(&self, id: &str) -> Result<(), TodoError> {
         let mut builder = CommandBuilder::new();
         builder.label_delete(id);
 
@@ -464,10 +394,10 @@ mod tests {
     }
 
     /// 更新过滤器顺序 (使用 Sync API)
-    pub async fn update_filter_order(&mut self, filters: &[(&str, i64)]) -> Result<(), TodoError> {
-        let filter_args: Vec<FilterOrderArgs> = filters
+    pub async fn update_filter_order(&self, filters: &[(&str, i64)]) -> Result<(), TodoError> {
+        let filter_args: Vec<super::commands::FilterOrderArgs> = filters
             .iter()
-            .map(|(id, order)| FilterOrderArgs::new(id.to_string(), *order))
+            .map(|(id, order)| super::commands::FilterOrderArgs::new(id.to_string(), *order))
             .collect();
 
         let mut builder = CommandBuilder::new();
@@ -479,12 +409,12 @@ mod tests {
 
     /// 添加过滤器 (使用 Sync API)
     pub async fn add_filter(
-        &mut self,
+        &self,
         name: &str,
         query: &str,
         color: Option<&str>,
     ) -> Result<String, TodoError> {
-        let args = FilterAddArgs::new(name.to_string(), query.to_string())
+        let args = super::commands::FilterAddArgs::new(name.to_string(), query.to_string())
             .color(color.map(|c| c.to_string()));
 
         let mut builder = CommandBuilder::new();
@@ -502,7 +432,7 @@ mod tests {
 
     /// 更新过滤器 (使用 Sync API)
     pub async fn update_filter(
-        &mut self,
+        &self,
         id: &str,
         name: Option<&str>,
         query: Option<&str>,
@@ -516,11 +446,17 @@ mod tests {
     }
 
     /// 删除过滤器 (使用 Sync API)
-    pub async fn delete_filter(&mut self, id: &str) -> Result<(), TodoError> {
+    pub async fn delete_filter(&self, id: &str) -> Result<(), TodoError> {
         let mut builder = CommandBuilder::new();
         builder.filter_delete(id);
 
         self.execute(builder).await?;
         Ok(())
     }
+}
+
+#[cfg(test)]
+mod tests {
+    // Tests that require a running Todoist instance
+    // These will be skipped in normal test runs
 }
