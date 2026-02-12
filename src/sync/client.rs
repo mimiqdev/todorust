@@ -445,6 +445,71 @@ impl TodoistSyncClient {
 
 #[cfg(test)]
 mod tests {
-    // Tests that require a running Todoist instance
-    // These will be skipped in normal test runs
+    use super::*;
+    use tokio::test;
+
+    #[test]
+    async fn test_client_new() {
+        let client = TodoistSyncClient::new("test_token".to_string());
+        assert_eq!(client.token, "test_token");
+        assert_eq!(client.sync_url, "https://api.todoist.com/api/v1/sync");
+    }
+
+    #[test]
+    async fn test_get_auth_header() {
+        let client = TodoistSyncClient::new("my_token".to_string());
+        let header = client.get_auth_header();
+        assert_eq!(header, "Bearer my_token");
+    }
+
+    #[test]
+    async fn test_sync_token_initial_none() {
+        let client = TodoistSyncClient::new("test_token".to_string());
+        assert_eq!(client.get_sync_token(), None);
+    }
+
+    #[test]
+    async fn test_set_sync_token() {
+        let client = TodoistSyncClient::new("test_token".to_string());
+        client.set_sync_token("initial_token".to_string());
+        assert_eq!(client.get_sync_token(), Some("initial_token".to_string()));
+    }
+
+    #[test]
+    async fn test_set_sync_token_overwrites() {
+        let client = TodoistSyncClient::new("test_token".to_string());
+        client.set_sync_token("token1".to_string());
+        client.set_sync_token("token2".to_string());
+        assert_eq!(client.get_sync_token(), Some("token2".to_string()));
+    }
+
+    #[test]
+    async fn test_sync_token_refcell_behavior() {
+        let client = TodoistSyncClient::new("test_token".to_string());
+
+        // Set initial token
+        client.set_sync_token("token_a".to_string());
+        let first_token = client.get_sync_token();
+        assert_eq!(first_token, Some("token_a".to_string()));
+
+        // Update token
+        client.set_sync_token("token_b".to_string());
+        let second_token = client.get_sync_token();
+        assert_eq!(second_token, Some("token_b".to_string()));
+    }
+
+    #[test]
+    async fn test_client_with_empty_token() {
+        let client = TodoistSyncClient::new("".to_string());
+        assert_eq!(client.token, "");
+        let header = client.get_auth_header();
+        assert_eq!(header, "Bearer ");
+    }
+
+    #[test]
+    async fn test_sync_url_is_correct() {
+        let client = TodoistSyncClient::new("test".to_string());
+        assert!(client.sync_url.starts_with("https://api.todoist.com"));
+        assert!(client.sync_url.contains("/v1/sync"));
+    }
 }

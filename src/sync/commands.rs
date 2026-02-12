@@ -807,4 +807,296 @@ mod tests {
         assert_eq!(cmd.type_, "section_reorder");
         assert!(cmd.temp_id.is_none());
     }
+
+    #[test]
+    fn test_project_add_command() {
+        let commands = CommandBuilder::new()
+            .project_add(ProjectAddArgs::new("New Project".to_string()))
+            .build();
+        assert_eq!(commands.len(), 1);
+
+        let cmd = &commands[0];
+        assert_eq!(cmd.type_, "project_add");
+        assert!(cmd.temp_id.is_some());
+    }
+
+    #[test]
+    fn test_project_add_with_color_and_favorite() {
+        let commands = CommandBuilder::new()
+            .project_add(
+                ProjectAddArgs::new("My Project".to_string())
+                    .color(Some("blue".to_string()))
+                    .favorite(Some(true)),
+            )
+            .build();
+        assert_eq!(commands.len(), 1);
+
+        let cmd = &commands[0];
+        assert_eq!(cmd.type_, "project_add");
+        assert!(cmd.temp_id.is_some());
+    }
+
+    #[test]
+    fn test_project_update_command() {
+        let commands = CommandBuilder::new()
+            .project_update("123", Some("Updated"), Some("red"), Some(false))
+            .build();
+        assert_eq!(commands.len(), 1);
+
+        let cmd = &commands[0];
+        assert_eq!(cmd.type_, "project_update");
+        assert!(cmd.temp_id.is_none());
+    }
+
+    #[test]
+    fn test_project_delete_command() {
+        let commands = CommandBuilder::new().project_delete("123").build();
+        assert_eq!(commands.len(), 1);
+
+        let cmd = &commands[0];
+        assert_eq!(cmd.type_, "project_delete");
+        assert!(cmd.temp_id.is_none());
+    }
+
+    #[test]
+    fn test_section_add_command() {
+        let commands = CommandBuilder::new()
+            .section_add(SectionAddArgs::new(
+                "New Section".to_string(),
+                "456".to_string(),
+            ))
+            .build();
+        assert_eq!(commands.len(), 1);
+
+        let cmd = &commands[0];
+        assert_eq!(cmd.type_, "section_add");
+        assert!(cmd.temp_id.is_some());
+    }
+
+    #[test]
+    fn test_section_update_command() {
+        let commands = CommandBuilder::new()
+            .section_update("123", "Updated Section")
+            .build();
+        assert_eq!(commands.len(), 1);
+
+        let cmd = &commands[0];
+        assert_eq!(cmd.type_, "section_update");
+        assert!(cmd.temp_id.is_none());
+    }
+
+    #[test]
+    fn test_section_delete_command() {
+        let commands = CommandBuilder::new().section_delete("123").build();
+        assert_eq!(commands.len(), 1);
+
+        let cmd = &commands[0];
+        assert_eq!(cmd.type_, "section_delete");
+        assert!(cmd.temp_id.is_none());
+    }
+
+    #[test]
+    fn test_item_reopen_command() {
+        let commands = CommandBuilder::new().item_reopen("123").build();
+        assert_eq!(commands.len(), 1);
+
+        let cmd = &commands[0];
+        assert_eq!(cmd.type_, "item_reopen");
+        assert!(cmd.temp_id.is_none());
+    }
+
+    #[test]
+    fn test_item_move_command() {
+        let commands = CommandBuilder::new().item_move("123", "456", None).build();
+        assert_eq!(commands.len(), 1);
+
+        let cmd = &commands[0];
+        assert_eq!(cmd.type_, "item_move");
+        assert!(cmd.temp_id.is_none());
+    }
+
+    #[test]
+    fn test_item_move_with_section() {
+        let commands = CommandBuilder::new()
+            .item_move("123", "456", Some("789"))
+            .build();
+        assert_eq!(commands.len(), 1);
+
+        let cmd = &commands[0];
+        assert_eq!(cmd.type_, "item_move");
+        assert!(cmd.temp_id.is_none());
+    }
+
+    #[test]
+    fn test_item_delete_command() {
+        let commands = CommandBuilder::new().item_delete("123").build();
+        assert_eq!(commands.len(), 1);
+
+        let cmd = &commands[0];
+        assert_eq!(cmd.type_, "item_delete");
+        assert!(cmd.temp_id.is_none());
+    }
+
+    #[test]
+    fn test_filter_add_command() {
+        let commands = CommandBuilder::new()
+            .filter_add(FilterAddArgs::new(
+                "My Filter".to_string(),
+                "today".to_string(),
+            ))
+            .build();
+        assert_eq!(commands.len(), 1);
+
+        let cmd = &commands[0];
+        assert_eq!(cmd.type_, "filter_add");
+        assert!(cmd.temp_id.is_some());
+    }
+
+    #[test]
+    fn test_filter_add_with_color() {
+        let commands = CommandBuilder::new()
+            .filter_add(
+                FilterAddArgs::new("My Filter".to_string(), "overdue".to_string())
+                    .color(Some("green".to_string())),
+            )
+            .build();
+        assert_eq!(commands.len(), 1);
+
+        let cmd = &commands[0];
+        assert_eq!(cmd.type_, "filter_add");
+        assert!(cmd.temp_id.is_some());
+    }
+
+    #[test]
+    fn test_filter_update_command() {
+        let commands = CommandBuilder::new()
+            .filter_update(
+                "123",
+                Some("Updated Filter"),
+                Some("today | overdue"),
+                Some("blue"),
+            )
+            .build();
+        assert_eq!(commands.len(), 1);
+
+        let cmd = &commands[0];
+        assert_eq!(cmd.type_, "filter_update");
+        assert!(cmd.temp_id.is_none());
+    }
+
+    #[test]
+    fn test_filter_delete_command() {
+        let commands = CommandBuilder::new().filter_delete("123").build();
+        assert_eq!(commands.len(), 1);
+
+        let cmd = &commands[0];
+        assert_eq!(cmd.type_, "filter_delete");
+        assert!(cmd.temp_id.is_none());
+    }
+
+    #[test]
+    fn test_command_builder_default() {
+        let builder = CommandBuilder::default();
+        assert!(builder.build().is_empty());
+    }
+
+    #[test]
+    fn test_item_add_args_builder_pattern() {
+        let args = ItemAddArgs::new("New Task".to_string())
+            .description(Some("Task description".to_string()))
+            .project_id(Some("123".to_string()))
+            .section_id(Some("456".to_string()))
+            .due_string(Some("tomorrow".to_string()))
+            .priority(Some(4))
+            .labels(Some(vec!["label1".to_string(), "label2".to_string()]));
+
+        let commands = CommandBuilder::new().item_add(args).build();
+        assert_eq!(commands.len(), 1);
+
+        let cmd = &commands[0];
+        assert_eq!(cmd.type_, "item_add");
+        assert!(cmd.temp_id.is_some());
+    }
+
+    #[test]
+    fn test_item_update_args_builder_pattern() {
+        let args = ItemUpdateArgs::new("123".to_string())
+            .content(Some("Updated content".to_string()))
+            .description(Some("Updated description".to_string()))
+            .priority(Some(3))
+            .due_string(Some("next week".to_string()))
+            .due_datetime(Some("2024-01-15T10:00:00".to_string()))
+            .due_lang(Some("en".to_string()))
+            .labels(Some(vec!["tag1".to_string()]));
+
+        let commands = CommandBuilder::new().item_update(args).build();
+        assert_eq!(commands.len(), 1);
+
+        let cmd = &commands[0];
+        assert_eq!(cmd.type_, "item_update");
+    }
+
+    #[test]
+    fn test_label_add_args_builder_pattern() {
+        let args = LabelAddArgs::new("new_label".to_string()).color(Some("yellow".to_string()));
+        let commands = CommandBuilder::new().label_add(args).build();
+        assert_eq!(commands.len(), 1);
+    }
+
+    #[test]
+    fn test_filter_add_args_builder_pattern() {
+        let args = FilterAddArgs::new("Filter Name".to_string(), "p1 & @work".to_string())
+            .color(Some("purple".to_string()));
+        let commands = CommandBuilder::new().filter_add(args).build();
+        assert_eq!(commands.len(), 1);
+    }
+
+    #[test]
+    fn test_section_order_args() {
+        let args = SectionOrderArgs::new("123".to_string(), 5);
+        assert_eq!(args.id, "123");
+        assert_eq!(args.order, 5);
+    }
+
+    #[test]
+    fn test_filter_order_args() {
+        let args = FilterOrderArgs::new("456".to_string(), 10);
+        assert_eq!(args.id, "456");
+        assert_eq!(args.order, 10);
+    }
+
+    #[test]
+    fn test_command_serialize_to_json() {
+        let commands = CommandBuilder::new()
+            .item_add(ItemAddArgs::new("Test".to_string()))
+            .build();
+
+        let cmd = &commands[0];
+        let json = serde_json::to_string(cmd).unwrap();
+        assert!(json.contains("type"));
+        assert!(json.contains("uuid"));
+        assert!(json.contains("args"));
+    }
+
+    #[test]
+    fn test_command_type_field() {
+        let item_add = CommandBuilder::new()
+            .item_add(ItemAddArgs::new("Task".to_string()))
+            .build();
+        assert_eq!(item_add[0].type_, "item_add");
+
+        let item_close = CommandBuilder::new().item_close("123").build();
+        assert_eq!(item_close[0].type_, "item_close");
+
+        let project_add = CommandBuilder::new()
+            .project_add(ProjectAddArgs::new("Project".to_string()))
+            .build();
+        assert_eq!(project_add[0].type_, "project_add");
+    }
+
+    #[test]
+    fn test_empty_builder_build() {
+        let commands = CommandBuilder::new().build();
+        assert!(commands.is_empty());
+    }
 }
