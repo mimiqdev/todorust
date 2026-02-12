@@ -339,6 +339,7 @@ struct CreateTaskRequest {
 }
 
 #[cfg(test)]
+#[allow(deprecated)]
 mod tests {
     use super::*;
 
@@ -455,7 +456,7 @@ mod tests {
         let task: crate::models::Task = serde_json::from_str(json).unwrap();
         assert_eq!(task.id, "789");
         assert_eq!(task.content, "API format task");
-        assert_eq!(task.is_completed, false);
+        assert!(!task.is_completed);
         assert_eq!(task.created_at, "2026-01-10T10:00:00Z");
         assert_eq!(task.order, 1);
     }
@@ -475,8 +476,8 @@ mod tests {
         }"#;
 
         let task: crate::models::Task = serde_json::from_str(json).unwrap();
-        assert_eq!(
-            task.is_completed, true,
+        assert!(
+            task.is_completed,
             "checked=true should map to is_completed=true"
         );
         assert_eq!(task.content, "Task with checked field");
@@ -495,8 +496,8 @@ mod tests {
         }"#;
 
         let task: crate::models::Task = serde_json::from_str(json).unwrap();
-        assert_eq!(
-            task.is_completed, false,
+        assert!(
+            !task.is_completed,
             "checked=false should map to is_completed=false"
         );
     }
@@ -598,7 +599,7 @@ mod tests {
     #[tokio::test]
     #[ignore]
     async fn test_create_task_with_labels_real() {
-        use crate::Formattable;
+        // Using deprecated TodoistClient intentionally for backward compatibility tests
         let client = TodoistClient::new(get_test_token());
 
         let task = client

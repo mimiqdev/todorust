@@ -660,7 +660,7 @@ mod tests {
 
         let cmd = &commands[0];
         assert_eq!(cmd.type_, "item_add");
-        assert!(cmd.uuid.is_empty() == false);
+        assert!(!cmd.uuid.is_empty());
         assert!(cmd.temp_id.is_some());
     }
 
