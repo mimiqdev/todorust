@@ -1,11 +1,55 @@
+//! # TodoRust - Todoist CLI Client
+//!
+//! A modern CLI client for Todoist built with Rust.
+//!
+//! ## Features
+//!
+//! - **Sync API**: Efficient batch operations using Todoist's Sync API
+//! - **Multiple Output Formats**: JSON, Checklist, and Structured views
+//! - **Task Management**: Create, complete, reopen, and organize tasks
+//!
+//! ## Usage
+//!
+//! ```bash
+//! # Initialize configuration
+//! todorust init --api-token YOUR_TOKEN
+//!
+//! # List tasks
+//! todorust tasks
+//! todorust tasks --filter "today"
+//!
+//! # Create a task
+//! todorust create --title "Buy milk"
+//!
+//! # Complete a task
+//! todorust complete --task-id 12345
+//! ```
+//!
+//! ## Modules
+//!
+//! - [`sync`]: Todoist Sync API client for efficient batch operations
+//! - [`api`]: Legacy REST API client (deprecated, use [`sync`] instead)
+//! - [`formatter`]: Output formatting utilities
+
+// pub mod api;  // DEPRECATED: Legacy REST API client
+pub mod config;
+pub mod error;
+pub mod formatter;
+pub mod models;
+pub mod sync;
+
+pub use formatter::{Formattable, OutputFormat};
+pub use models::Project;
+pub use sync::{SyncFilter, SyncLabel, SyncProject, SyncSection, SyncTask, TodoistSyncClient};
+
 use clap::{Parser, Subcommand};
-#[allow(deprecated)]
-use todorust::{
-    api::TodoistClient,
-    config::{init_config, load_config},
-    error::TodoError,
-    Formattable, OutputFormat,
-};
+// DEPRECATED: Legacy REST API client imports - use sync module instead
+// use todorust::{
+//     api::TodoistClient,
+//     config::{init_config, load_config},
+//     error::TodoError,
+//     Formattable, OutputFormat,
+// };
 
 #[derive(Parser)]
 #[command(name = "todorust")]
@@ -77,34 +121,37 @@ fn validate_priority(priority: u8) -> bool {
     (1..=4).contains(&priority)
 }
 
-fn handle_error(error: TodoError) {
+fn handle_error(error: todorust::error::TodoError) {
     match &error {
-        TodoError::ConfigNotFound => {
+        todorust::error::TodoError::ConfigNotFound => {
             eprintln!("Error: Configuration not found.");
             eprintln!("Run: todorust init --api-token YOUR_TOKEN");
         }
-        TodoError::Http(status) => {
+        todorust::error::TodoError::Http(status) => {
             eprintln!("Error: HTTP {}", status);
         }
-        TodoError::Api(msg) => {
+        todorust::error::TodoError::Api(msg) => {
             eprintln!("API Error: {}", msg);
         }
-        TodoError::Request(e) => {
+        todorust::error::TodoError::Request(e) => {
             eprintln!("Request Error: {}", e);
         }
-        TodoError::Config(msg) => {
+        todorust::error::TodoError::Config(msg) => {
             eprintln!("Config Error: {}", msg);
         }
-        TodoError::InvalidInput(msg) => {
+        todorust::error::TodoError::InvalidInput(msg) => {
             eprintln!("Invalid Input: {}", msg);
         }
-        TodoError::Serialize(msg) => {
+        todorust::error::TodoError::Serialize(msg) => {
             eprintln!("Serialize Error: {}", msg);
         }
     }
     std::process::exit(1);
 }
 
+// DEPRECATED: The main function using legacy REST API is commented out
+// The sync API client (TodoistSyncClient) should be used instead for new implementations
+/*
 #[tokio::main]
 async fn main() {
     let cli = Cli::parse();
@@ -158,12 +205,12 @@ async fn main() {
                     eprintln!("Warning: both --title and --content provided; using --title.");
                 }
                 let content = title_value.or(content_value).ok_or_else(|| {
-                    TodoError::InvalidInput("Task title/content cannot be empty".to_string())
+                    todorust::error::TodoError::InvalidInput("Task title/content cannot be empty".to_string())
                 })?;
 
                 if let Some(p) = priority {
                     if !validate_priority(p) {
-                        return Err(TodoError::InvalidInput(
+                        return Err(todorust::error::TodoError::InvalidInput(
                             "Priority must be between 1 and 4".to_string(),
                         ));
                     }
@@ -203,12 +250,20 @@ async fn main() {
             Commands::Init { .. } => unreachable!(),
         }
 
-        Ok::<(), TodoError>(())
+        Ok::<(), todorust::error::TodoError>(())
     };
 
     if let Err(e) = result.await {
         handle_error(e);
     }
+}
+*/
+
+fn main() {
+    eprintln!("Error: The legacy REST API CLI has been deprecated.");
+    eprintln!("Please use the library functionality via the sync API instead.");
+    eprintln!("The todorust binary is currently disabled pending migration to sync API.");
+    std::process::exit(1);
 }
 
 #[cfg(test)]
