@@ -57,7 +57,6 @@ pub fn init_config(api_token: &str) -> Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use tempfile::tempdir;
 
     #[test]
     fn test_config_parsing() {
