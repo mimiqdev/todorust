@@ -104,8 +104,7 @@ struct InitCommand {
     api_token: String,
 }
 
-#[derive(Clone)]
-#[derive(Subcommand)]
+#[derive(Clone, Subcommand)]
 enum ConfigCommands {
     /// Get configuration
     Get,
@@ -113,8 +112,7 @@ enum ConfigCommands {
     Set,
 }
 
-#[derive(Clone)]
-#[derive(Subcommand)]
+#[derive(Clone, Subcommand)]
 enum GetCommands {
     /// Get tasks with optional filter
     Tasks {
@@ -137,8 +135,7 @@ enum GetCommands {
     },
 }
 
-#[derive(Clone)]
-#[derive(Subcommand)]
+#[derive(Clone, Subcommand)]
 enum AddCommands {
     /// Create a new task
     Task {
@@ -161,8 +158,7 @@ enum AddCommands {
     },
 }
 
-#[derive(Clone)]
-#[derive(Subcommand)]
+#[derive(Clone, Subcommand)]
 enum EditCommands {
     /// Edit a task
     Task {
@@ -190,8 +186,7 @@ enum EditCommands {
     },
 }
 
-#[derive(Clone)]
-#[derive(Subcommand)]
+#[derive(Clone, Subcommand)]
 enum MoveCommands {
     /// Move a task
     Task {
@@ -202,8 +197,7 @@ enum MoveCommands {
     },
 }
 
-#[derive(Clone)]
-#[derive(Subcommand)]
+#[derive(Clone, Subcommand)]
 enum CompleteCommands {
     /// Complete a task
     Task {
@@ -212,8 +206,7 @@ enum CompleteCommands {
     },
 }
 
-#[derive(Clone)]
-#[derive(Subcommand)]
+#[derive(Clone, Subcommand)]
 enum ReopenCommands {
     /// Reopen a task
     Task {
@@ -222,8 +215,7 @@ enum ReopenCommands {
     },
 }
 
-#[derive(Clone)]
-#[derive(Subcommand)]
+#[derive(Clone, Subcommand)]
 enum DeleteCommands {
     /// Delete a task
     Task {
@@ -421,7 +413,9 @@ async fn main() -> Result<(), TodoError> {
                 labels,
             } => {
                 let content_value = title.as_deref().or(content.as_deref());
-                let labels_vec = labels.as_ref().map(|l| l.split(',').map(|s| s.trim()).collect());
+                let labels_vec = labels
+                    .as_ref()
+                    .map(|l| l.split(',').map(|s| s.trim()).collect());
                 sync_client
                     .update_task(
                         &task_id,
@@ -435,7 +429,8 @@ async fn main() -> Result<(), TodoError> {
                 println!("Task {} updated", task_id);
             }
             EditCommands::Project { project_id, name } => {
-                let builder = CommandBuilder::new().project_update(&project_id, name.as_deref(), None, None);
+                let builder =
+                    CommandBuilder::new().project_update(&project_id, name.as_deref(), None, None);
                 sync_client.execute(builder).await?;
                 println!("Project {} updated", project_id);
             }
