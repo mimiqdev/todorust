@@ -52,10 +52,7 @@ mod tests {
     #[test]
     fn test_todo_error_config_message() {
         let error = TodoError::Config("test error message".to_string());
-        assert_eq!(
-            format!("{}", error),
-            "Config error: test error message"
-        );
+        assert_eq!(format!("{}", error), "Config error: test error message");
     }
 
     #[test]
@@ -88,7 +85,10 @@ mod tests {
     #[test]
     fn test_todo_error_serialize_message() {
         let error = TodoError::Serialize("serialization failed".to_string());
-        assert_eq!(format!("{}", error), "Serialize error: serialization failed");
+        assert_eq!(
+            format!("{}", error),
+            "Serialize error: serialization failed"
+        );
     }
 
     #[test]
@@ -104,7 +104,7 @@ mod tests {
         let invalid_toml = "invalid = [";
         let parse_result: std::result::Result<toml::Value, toml::de::Error> = invalid_toml.parse();
         assert!(parse_result.is_err());
-        
+
         let toml_err = parse_result.unwrap_err();
         let todo_error: TodoError = toml_err.into();
         assert!(format!("{}", todo_error).contains("Parse error"));

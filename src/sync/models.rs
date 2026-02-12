@@ -206,7 +206,7 @@ mod tests {
             "created_at": "2024-01-01T00:00:00Z",
             "updated_at": "2024-01-02T00:00:00Z"
         }"#;
-        
+
         let project: SyncProject = serde_json::from_str(json).unwrap();
         assert_eq!(project.id, "123");
         assert_eq!(project.name, "Test Project");
@@ -226,7 +226,7 @@ mod tests {
             "created_at": "2024-01-01T00:00:00Z",
             "updated_at": "2024-01-02T00:00:00Z"
         }"#;
-        
+
         let task: SyncTask = serde_json::from_str(json).unwrap();
         assert_eq!(task.id, "456");
         assert_eq!(task.content, "Test Task");
@@ -246,7 +246,7 @@ mod tests {
             "is_deleted": false,
             "created_at": "2024-01-01T00:00:00Z"
         }"#;
-        
+
         let section: SyncSection = serde_json::from_str(json).unwrap();
         assert_eq!(section.id, "789");
         assert_eq!(section.project_id, "123");
@@ -261,7 +261,7 @@ mod tests {
             "color": "blue",
             "is_favorite": true
         }"#;
-        
+
         let label: SyncLabel = serde_json::from_str(json).unwrap();
         assert_eq!(label.id, "label1");
         assert_eq!(label.name, "Important");
@@ -276,7 +276,7 @@ mod tests {
             "name": "My Filter",
             "query": "today | overdue"
         }"#;
-        
+
         let filter: SyncFilter = serde_json::from_str(json).unwrap();
         assert_eq!(filter.id, "filter1");
         assert_eq!(filter.name, "My Filter");
@@ -291,7 +291,7 @@ mod tests {
             "datetime": "2024-01-15T09:00:00",
             "timezone": "UTC"
         }"#;
-        
+
         let due: SyncDue = serde_json::from_str(json).unwrap();
         assert_eq!(due.date, Some("2024-01-15".to_string()));
         assert!(due.is_recurring);
@@ -303,7 +303,7 @@ mod tests {
         let json = r#"{
             "date": "2024-01-15"
         }"#;
-        
+
         let due: SyncDue = serde_json::from_str(json).unwrap();
         assert_eq!(due.date, Some("2024-01-15".to_string()));
         assert!(!due.is_recurring);
@@ -374,7 +374,7 @@ mod tests {
             "projects": [{"id": "p1", "name": "Project 1", "color": "red", "shared": false, "favorite": false, "sort_order": 0, "is_archived": false, "is_deleted": false, "created_at": "2024-01-01T00:00:00Z", "updated_at": "2024-01-01T00:00:00Z"}],
             "items": [{"id": "t1", "content": "Task 1", "priority": 1, "order": 1, "is_completed": false, "created_at": "2024-01-01T00:00:00Z", "updated_at": "2024-01-01T00:00:00Z"}]
         }"#;
-        
+
         let response: SyncReadResponse = serde_json::from_str(json).unwrap();
         assert_eq!(response.sync_token, "token123");
         assert!(!response.full_sync);

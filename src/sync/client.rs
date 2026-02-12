@@ -486,12 +486,12 @@ mod tests {
     #[test]
     async fn test_sync_token_refcell_behavior() {
         let client = TodoistSyncClient::new("test_token".to_string());
-        
+
         // Set initial token
         client.set_sync_token("token_a".to_string());
         let first_token = client.get_sync_token();
         assert_eq!(first_token, Some("token_a".to_string()));
-        
+
         // Update token
         client.set_sync_token("token_b".to_string());
         let second_token = client.get_sync_token();

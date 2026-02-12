@@ -861,7 +861,10 @@ mod tests {
     #[test]
     fn test_section_add_command() {
         let commands = CommandBuilder::new()
-            .section_add(SectionAddArgs::new("New Section".to_string(), "456".to_string()))
+            .section_add(SectionAddArgs::new(
+                "New Section".to_string(),
+                "456".to_string(),
+            ))
             .build();
         assert_eq!(commands.len(), 1);
 
@@ -904,9 +907,7 @@ mod tests {
 
     #[test]
     fn test_item_move_command() {
-        let commands = CommandBuilder::new()
-            .item_move("123", "456", None)
-            .build();
+        let commands = CommandBuilder::new().item_move("123", "456", None).build();
         assert_eq!(commands.len(), 1);
 
         let cmd = &commands[0];
@@ -939,7 +940,10 @@ mod tests {
     #[test]
     fn test_filter_add_command() {
         let commands = CommandBuilder::new()
-            .filter_add(FilterAddArgs::new("My Filter".to_string(), "today".to_string()))
+            .filter_add(FilterAddArgs::new(
+                "My Filter".to_string(),
+                "today".to_string(),
+            ))
             .build();
         assert_eq!(commands.len(), 1);
 
@@ -966,7 +970,12 @@ mod tests {
     #[test]
     fn test_filter_update_command() {
         let commands = CommandBuilder::new()
-            .filter_update("123", Some("Updated Filter"), Some("today | overdue"), Some("blue"))
+            .filter_update(
+                "123",
+                Some("Updated Filter"),
+                Some("today | overdue"),
+                Some("blue"),
+            )
             .build();
         assert_eq!(commands.len(), 1);
 
@@ -1061,7 +1070,7 @@ mod tests {
         let commands = CommandBuilder::new()
             .item_add(ItemAddArgs::new("Test".to_string()))
             .build();
-        
+
         let cmd = &commands[0];
         let json = serde_json::to_string(cmd).unwrap();
         assert!(json.contains("type"));
