@@ -37,6 +37,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
+      - name: Install cargo-llvm-cov
+        run: cargo install cargo-llvm-cov
       - name: Generate coverage
         env:
           TODOIST_API_TOKEN: ${{ secrets.TODOIST_API_TOKEN }}
