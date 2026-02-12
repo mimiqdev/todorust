@@ -666,9 +666,7 @@ mod tests {
 
     #[test]
     fn test_item_close_command() {
-        let commands = CommandBuilder::new()
-            .item_close("123")
-            .build();
+        let commands = CommandBuilder::new().item_close("123").build();
         assert_eq!(commands.len(), 1);
 
         let cmd = &commands[0];
@@ -706,9 +704,7 @@ mod tests {
 
     #[test]
     fn test_item_complete_command() {
-        let commands = CommandBuilder::new()
-            .item_complete("123")
-            .build();
+        let commands = CommandBuilder::new().item_complete("123").build();
         assert_eq!(commands.len(), 1);
 
         let cmd = &commands[0];
@@ -744,9 +740,7 @@ mod tests {
 
     #[test]
     fn test_label_delete_command() {
-        let commands = CommandBuilder::new()
-            .label_delete("456")
-            .build();
+        let commands = CommandBuilder::new().label_delete("456").build();
         assert_eq!(commands.len(), 1);
 
         let cmd = &commands[0];
@@ -771,9 +765,7 @@ mod tests {
 
     #[test]
     fn test_section_archive_command() {
-        let commands = CommandBuilder::new()
-            .section_archive("123")
-            .build();
+        let commands = CommandBuilder::new().section_archive("123").build();
         assert_eq!(commands.len(), 1);
 
         let cmd = &commands[0];
@@ -783,9 +775,7 @@ mod tests {
 
     #[test]
     fn test_section_unarchive_command() {
-        let commands = CommandBuilder::new()
-            .section_unarchive("123")
-            .build();
+        let commands = CommandBuilder::new().section_unarchive("123").build();
         assert_eq!(commands.len(), 1);
 
         let cmd = &commands[0];
@@ -795,9 +785,7 @@ mod tests {
 
     #[test]
     fn test_section_move_command() {
-        let commands = CommandBuilder::new()
-            .section_move("123", "456")
-            .build();
+        let commands = CommandBuilder::new().section_move("123", "456").build();
         assert_eq!(commands.len(), 1);
 
         let cmd = &commands[0];

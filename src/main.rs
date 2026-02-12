@@ -4,8 +4,7 @@ use todorust::{
     api::TodoistClient,
     config::{init_config, load_config},
     error::TodoError,
-    Formattable,
-    OutputFormat,
+    Formattable, OutputFormat,
 };
 
 #[derive(Parser)]
@@ -282,10 +281,7 @@ mod tests {
     fn test_cli_create_with_content() {
         let args = vec!["todorust", "create", "--content", "Legacy task"];
         let cli = Cli::try_parse_from(args).unwrap();
-        if let Commands::Create {
-            content, title, ..
-        } = cli.command
-        {
+        if let Commands::Create { content, title, .. } = cli.command {
             assert_eq!(content, Some("Legacy task".to_string()));
             assert_eq!(title, None);
         } else {

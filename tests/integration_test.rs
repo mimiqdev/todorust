@@ -15,5 +15,8 @@ fn test_end_to_end_workflow() {
         .expect("TODOIST_TOKEN env var or config file required");
 
     println!("Integration test requires proper config handling");
-    println!("Token loaded successfully (first 8 chars): {}...", &token[..8.min(token.len())]);
+    println!(
+        "Token loaded successfully (first 8 chars): {}...",
+        &token[..8.min(token.len())]
+    );
 }

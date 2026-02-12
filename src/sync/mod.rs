@@ -12,4 +12,4 @@ pub use commands::{
     Command, CommandBuilder, FilterAddArgs, FilterOrderArgs, ItemAddArgs, ItemUpdateArgs,
     LabelAddArgs, ProjectAddArgs, SectionAddArgs,
 };
-pub use models::{SyncProject, SyncTask, SyncSection, SyncLabel, SyncFilter, SyncDue};
+pub use models::{SyncDue, SyncFilter, SyncLabel, SyncProject, SyncSection, SyncTask};
