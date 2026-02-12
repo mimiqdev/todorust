@@ -44,3 +44,98 @@ impl From<toml::de::Error> for TodoError {
 }
 
 pub type Result<T> = std::result::Result<T, TodoError>;
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_todo_error_config_message() {
+        let error = TodoError::Config("test error message".to_string());
+        assert_eq!(
+            format!("{}", error),
+            "Config error: test error message"
+        );
+    }
+
+    #[test]
+    fn test_todo_error_api_message() {
+        let error = TodoError::Api("api error".to_string());
+        assert_eq!(format!("{}", error), "API error: api error");
+    }
+
+    #[test]
+    fn test_todo_error_http_message() {
+        let error = TodoError::Http(404);
+        assert_eq!(format!("{}", error), "HTTP error 404");
+    }
+
+    #[test]
+    fn test_todo_error_invalid_input_message() {
+        let error = TodoError::InvalidInput("invalid input".to_string());
+        assert_eq!(format!("{}", error), "Invalid input: invalid input");
+    }
+
+    #[test]
+    fn test_todo_error_config_not_found_message() {
+        let error = TodoError::ConfigNotFound;
+        assert_eq!(
+            format!("{}", error),
+            "Config error: Configuration not found. Run `todorust init --api-token YOUR_TOKEN` to configure."
+        );
+    }
+
+    #[test]
+    fn test_todo_error_serialize_message() {
+        let error = TodoError::Serialize("serialization failed".to_string());
+        assert_eq!(format!("{}", error), "Serialize error: serialization failed");
+    }
+
+    #[test]
+    fn test_todo_error_from_serde_json() {
+        let json_error = serde_json::from_str::<serde_json::Value>("invalid json").unwrap_err();
+        let todo_error: TodoError = json_error.into();
+        assert!(format!("{}", todo_error).contains("JSON error"));
+    }
+
+    #[test]
+    fn test_todo_error_from_toml_de() {
+        // Create a proper toml::de::Error by attempting to parse invalid toml
+        let invalid_toml = "invalid = [";
+        let parse_result: std::result::Result<toml::Value, toml::de::Error> = invalid_toml.parse();
+        assert!(parse_result.is_err());
+        
+        let toml_err = parse_result.unwrap_err();
+        let todo_error: TodoError = toml_err.into();
+        assert!(format!("{}", todo_error).contains("Parse error"));
+    }
+
+    #[test]
+    fn test_result_type_alias() {
+        fn returns_result() -> Result<i32> {
+            Ok(42)
+        }
+
+        let result = returns_result();
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), 42);
+    }
+
+    #[test]
+    fn test_result_type_alias_error() {
+        fn returns_error() -> Result<i32> {
+            Err(TodoError::Config("error".to_string()))
+        }
+
+        let result = returns_error();
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_todo_error_debug() {
+        let error = TodoError::Config("debug test".to_string());
+        let debug_format = format!("{:?}", error);
+        assert!(debug_format.contains("Config"));
+        assert!(debug_format.contains("debug test"));
+    }
+}
