@@ -40,6 +40,8 @@ jobs:
       - name: Install tarpaulin
         run: cargo install cargo-tarpaulin
       - name: Generate coverage
+        env:
+          TODOIST_API_TOKEN: ${{ secrets.TODOIST_API_TOKEN }}
         run: cargo tarpaulin --workspace --out Xml --lib --bins --tests --fail-under 95 --exclude-files 'src/api.rs' --exclude-files 'src/main.rs'
       - name: Upload to Codecov
         uses: codecov/codecov-action@v4
