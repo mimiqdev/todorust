@@ -38,6 +38,6 @@ pub mod formatter;
 pub mod models;
 pub mod sync;
 
-pub use formatter::{OutputFormat, Formattable};
+pub use formatter::{Formattable, OutputFormat};
 pub use models::Project;
-pub use sync::{SyncProject, SyncTask, SyncSection, SyncLabel, SyncFilter, TodoistSyncClient};
+pub use sync::{SyncFilter, SyncLabel, SyncProject, SyncSection, SyncTask, TodoistSyncClient};

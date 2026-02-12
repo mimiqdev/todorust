@@ -11,8 +11,8 @@
  * - **Structured**: Hierarchical format with project groupings
  */
 
+use crate::models::{Filter, Project, TaskOutput};
 use clap::ValueEnum;
-use crate::models::{TaskOutput, Project, Filter};
 
 #[derive(Clone, Debug, PartialEq, ValueEnum)]
 pub enum OutputFormat {
@@ -40,7 +40,8 @@ fn format_json(tasks: &[TaskOutput]) -> String {
 }
 
 fn format_checklist(tasks: &[TaskOutput]) -> String {
-    tasks.iter()
+    tasks
+        .iter()
         .map(|task| {
             let checkbox = if task.is_completed { "[x]" } else { "[ ]" };
             if let Some(ref project) = task.project_name {
@@ -74,7 +75,10 @@ fn format_structured(tasks: &[TaskOutput]) -> String {
                 .map(|task| {
                     let checkbox = if task.is_completed { "[x]" } else { "[ ]" };
                     if task.priority > 1 {
-                        format!("- {} {} (Priority: {})", checkbox, task.content, task.priority)
+                        format!(
+                            "- {} {} (Priority: {})",
+                            checkbox, task.content, task.priority
+                        )
                     } else {
                         format!("- {} {}", checkbox, task.content)
                     }
@@ -102,11 +106,16 @@ fn format_json_projects(projects: &[Project]) -> String {
 }
 
 fn format_projects_checklist(projects: &[Project]) -> String {
-    projects.iter()
+    projects
+        .iter()
         .map(|project| {
             let indicator = if project.is_favorite { "⭐ " } else { "" };
-            format!("- [ ] {}{}{}", indicator, project.name,
-                    if project.is_shared { " (shared)" } else { "" })
+            format!(
+                "- [ ] {}{}{}",
+                indicator,
+                project.name,
+                if project.is_shared { " (shared)" } else { "" }
+            )
         })
         .collect::<Vec<_>>()
         .join("\n")
@@ -131,10 +140,7 @@ fn format_projects_structured(projects: &[Project]) -> String {
 
             format!(
                 "### {}\n\n**Color:** {}\n**ID:** {}\n{}",
-                project.name,
-                project.color,
-                project.id,
-                meta
+                project.name, project.color, project.id, meta
             )
         })
         .collect::<Vec<_>>()
@@ -156,16 +162,16 @@ fn format_json_filters(filters: &[Filter]) -> String {
 }
 
 fn format_filters_checklist(filters: &[Filter]) -> String {
-    filters.iter()
-        .map(|filter| {
-            format!("- [ ] {} ({})", filter.name, filter.query)
-        })
+    filters
+        .iter()
+        .map(|filter| format!("- [ ] {} ({})", filter.name, filter.query))
         .collect::<Vec<_>>()
         .join("\n")
 }
 
 fn format_filters_structured(filters: &[Filter]) -> String {
-    filters.iter()
+    filters
+        .iter()
         .map(|filter| {
             format!(
                 "### {}\n\n**Filter:** `{}`\n**ID:** {}\n",

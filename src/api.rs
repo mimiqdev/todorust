@@ -12,10 +12,15 @@
 use reqwest::Client as HttpClient;
 use serde::Serialize;
 
-use crate::models::{Filter, Project, ProjectsResponse, SyncResponse, Task, TaskOutput, TasksResponse};
 use crate::error::TodoError;
+use crate::models::{
+    Filter, Project, ProjectsResponse, SyncResponse, Task, TaskOutput, TasksResponse,
+};
 
-#[deprecated(since = "0.5.0", note = "Use sync::TodoistSyncClient instead for better performance")]
+#[deprecated(
+    since = "0.5.0",
+    note = "Use sync::TodoistSyncClient instead for better performance"
+)]
 pub struct TodoistClient {
     token: String,
     base_url: String,
@@ -53,8 +58,13 @@ impl TodoistClient {
             return Err(TodoError::Http(status.as_u16()));
         }
 
-        let projects_response: ProjectsResponse = serde_json::from_str(&_response_text)
-            .map_err(|e| TodoError::Api(format!("Failed to parse projects response: {}\nResponse: {}", e, _response_text)))?;
+        let projects_response: ProjectsResponse =
+            serde_json::from_str(&_response_text).map_err(|e| {
+                TodoError::Api(format!(
+                    "Failed to parse projects response: {}\nResponse: {}",
+                    e, _response_text
+                ))
+            })?;
         Ok(projects_response.results)
     }
 
@@ -64,7 +74,8 @@ impl TodoistClient {
         filter: Option<String>,
     ) -> Result<Vec<TaskOutput>, crate::error::TodoError> {
         // Check if filter is asking for completed tasks
-        let uses_completed_filter = filter.as_ref()
+        let uses_completed_filter = filter
+            .as_ref()
             .map(|f| f.contains("completed"))
             .unwrap_or(false);
 
@@ -122,18 +133,30 @@ impl TodoistClient {
         // Parse response - completed endpoint uses "items", others use "results"
         let tasks = if uses_completed_filter {
             let completed_response: serde_json::Value = serde_json::from_str(&response_text)
-                .map_err(|e| TodoError::Api(format!("Failed to parse completed tasks response: {}\nResponse: {}", e, response_text)))?;
+                .map_err(|e| {
+                    TodoError::Api(format!(
+                        "Failed to parse completed tasks response: {}\nResponse: {}",
+                        e, response_text
+                    ))
+                })?;
 
             // Extract items array
             completed_response["items"]
                 .as_array()
-                .ok_or_else(|| TodoError::Api("Missing 'items' in completed tasks response".to_string()))?
+                .ok_or_else(|| {
+                    TodoError::Api("Missing 'items' in completed tasks response".to_string())
+                })?
                 .iter()
                 .filter_map(|v| serde_json::from_value(v.clone()).ok())
                 .collect()
         } else {
-            let tasks_response: TasksResponse = serde_json::from_str(&response_text)
-                .map_err(|e| TodoError::Api(format!("Failed to parse tasks response: {}\nResponse: {}", e, response_text)))?;
+            let tasks_response: TasksResponse =
+                serde_json::from_str(&response_text).map_err(|e| {
+                    TodoError::Api(format!(
+                        "Failed to parse tasks response: {}\nResponse: {}",
+                        e, response_text
+                    ))
+                })?;
             tasks_response.results
         };
 
@@ -188,8 +211,12 @@ impl TodoistClient {
             return Err(TodoError::Http(status.as_u16()));
         }
 
-        let sync_data: SyncResponse = serde_json::from_str(&response_text)
-            .map_err(|e| TodoError::Api(format!("Failed to parse filters response: {}\nResponse: {}", e, response_text)))?;
+        let sync_data: SyncResponse = serde_json::from_str(&response_text).map_err(|e| {
+            TodoError::Api(format!(
+                "Failed to parse filters response: {}\nResponse: {}",
+                e, response_text
+            ))
+        })?;
         Ok(sync_data.filters)
     }
 
@@ -227,8 +254,12 @@ impl TodoistClient {
             return Err(crate::error::TodoError::Http(status.as_u16()));
         }
 
-        let task: Task = serde_json::from_str(&response_text)
-            .map_err(|e| TodoError::Api(format!("Failed to parse task response: {}\nResponse: {}", e, response_text)))?;
+        let task: Task = serde_json::from_str(&response_text).map_err(|e| {
+            TodoError::Api(format!(
+                "Failed to parse task response: {}\nResponse: {}",
+                e, response_text
+            ))
+        })?;
         let enriched = self.enrich_tasks(vec![task]).await;
         Ok(enriched.into_iter().next().unwrap())
     }
@@ -444,7 +475,10 @@ mod tests {
         }"#;
 
         let task: crate::models::Task = serde_json::from_str(json).unwrap();
-        assert_eq!(task.is_completed, true, "checked=true should map to is_completed=true");
+        assert_eq!(
+            task.is_completed, true,
+            "checked=true should map to is_completed=true"
+        );
         assert_eq!(task.content, "Task with checked field");
     }
 
@@ -461,7 +495,10 @@ mod tests {
         }"#;
 
         let task: crate::models::Task = serde_json::from_str(json).unwrap();
-        assert_eq!(task.is_completed, false, "checked=false should map to is_completed=false");
+        assert_eq!(
+            task.is_completed, false,
+            "checked=false should map to is_completed=false"
+        );
     }
 
     #[test]
@@ -541,7 +578,14 @@ mod tests {
         let client = TodoistClient::new(get_test_token());
 
         let task_output = client
-            .create_task("Test task from integration test", None, None, None, None, None)
+            .create_task(
+                "Test task from integration test",
+                None,
+                None,
+                None,
+                None,
+                None,
+            )
             .await
             .unwrap();
 
@@ -616,8 +660,14 @@ mod tests {
         let tasks = client.get_tasks(None).await.unwrap();
         let reopened_task = tasks.iter().find(|t| t.id == task.id);
 
-        assert!(reopened_task.is_some(), "Task should be in active tasks after reopening");
-        assert!(!reopened_task.unwrap().is_completed, "Task should not be completed after reopening");
+        assert!(
+            reopened_task.is_some(),
+            "Task should be in active tasks after reopening"
+        );
+        assert!(
+            !reopened_task.unwrap().is_completed,
+            "Task should not be completed after reopening"
+        );
 
         // Cleanup
         let _ = client.delete_task(&task.id).await;
@@ -647,11 +697,17 @@ mod tests {
         // Note: Filter priority values are inverted from API priority values!
         // API priority 1 (highest) = Filter priority 4
         // API priority 4 (lowest) = Filter priority 1
-        let tasks = client.get_tasks(Some("priority:1".to_string())).await.unwrap();
+        let tasks = client
+            .get_tasks(Some("priority:1".to_string()))
+            .await
+            .unwrap();
 
         // Verify all returned tasks have API priority 4 (lowest)
         for task in &tasks {
-            assert_eq!(task.priority, 4, "Filter priority:1 should return API priority 4 tasks (lowest)");
+            assert_eq!(
+                task.priority, 4,
+                "Filter priority:1 should return API priority 4 tasks (lowest)"
+            );
         }
 
         // Cleanup
@@ -667,7 +723,14 @@ mod tests {
 
         // Create and complete a task
         let task = client
-            .create_task("Test completed status display", None, None, None, None, None)
+            .create_task(
+                "Test completed status display",
+                None,
+                None,
+                None,
+                None,
+                None,
+            )
             .await
             .unwrap();
 
@@ -678,7 +741,10 @@ mod tests {
         tokio::time::sleep(tokio::time::Duration::from_secs(3)).await;
 
         // Get completed tasks using the completed endpoint
-        let tasks = client.get_tasks(Some("completed today".to_string())).await.unwrap();
+        let tasks = client
+            .get_tasks(Some("completed today".to_string()))
+            .await
+            .unwrap();
 
         // Verify the checkbox shows [x] for completed tasks
         let output = tasks.format(&OutputFormat::Checklist);
@@ -693,7 +759,10 @@ mod tests {
             assert!(has_completed, "Should have at least one completed task");
 
             // Verify checklist format shows [x]
-            assert!(output.contains("[x]"), "Completed tasks should show [x] in checklist format");
+            assert!(
+                output.contains("[x]"),
+                "Completed tasks should show [x] in checklist format"
+            );
         }
         // If tasks is empty, the test passes but we can't verify the format
     }
@@ -713,8 +782,11 @@ mod tests {
         for line in output.lines() {
             let line_str: &str = line;
             if line_str.starts_with("- ") {
-                assert!(line_str.contains("[x]") || line_str.contains("[ ]"),
-                        "Task line should have checkbox: {}", line_str);
+                assert!(
+                    line_str.contains("[x]") || line_str.contains("[ ]"),
+                    "Task line should have checkbox: {}",
+                    line_str
+                );
             }
         }
     }
