@@ -117,10 +117,12 @@ enum Commands {
     },
 }
 
+#[allow(dead_code)]
 fn validate_priority(priority: u8) -> bool {
     (1..=4).contains(&priority)
 }
 
+#[allow(dead_code)]
 fn handle_error(error: todorust::error::TodoError) {
     match &error {
         todorust::error::TodoError::ConfigNotFound => {
