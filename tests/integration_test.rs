@@ -3,7 +3,7 @@ use std::env;
 #[test]
 fn test_end_to_end_workflow() {
     // Get token from environment variable or config file
-    let token = env::var("TODOIST_TOKEN")
+    let token = env::var("TODOIST_API_TOKEN")
         .ok()
         .or_else(|| {
             // Try loading from config file
@@ -11,7 +11,7 @@ fn test_end_to_end_workflow() {
                 .ok()
                 .map(|config| config.api_token)
         })
-        .expect("TODOIST_TOKEN env var or config file required");
+        .expect("TODOIST_API_TOKEN env var or config file required");
 
     println!("Integration test requires proper config handling");
     println!(

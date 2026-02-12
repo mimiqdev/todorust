@@ -345,7 +345,7 @@ mod tests {
     /// Helper function to get API token for integration tests
     /// First tries environment variable, then falls back to config file
     fn get_test_token() -> String {
-        std::env::var("TODOIST_TOKEN")
+        std::env::var("TODOIST_API_TOKEN")
             .ok()
             .or_else(|| {
                 // Try loading from config file
@@ -353,7 +353,7 @@ mod tests {
                     .ok()
                     .map(|config| config.api_token)
             })
-            .expect("TODOIST_TOKEN env var or config file required")
+            .expect("TODOIST_API_TOKEN env var or config file required")
     }
 
     #[test]
