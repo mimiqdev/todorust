@@ -1,6 +1,9 @@
 # Todorust CLI
 
-A Rust CLI tool for Todoist API integration with simplified JSON output for AI tools and automation workflows.
+![CI](https://github.com/mimiqdev/todorust/actions/workflows/ci.yml/badge.svg)
+![Coverage](https://codecov.io/gh/mimiqdev/todorust/branch/main/graph/badge.svg)
+
+A Rust CLI tool for Todoist Sync API integration with simplified JSON output for AI tools and automation workflows.
 
 ## Features
 
