@@ -1,7 +1,6 @@
 use std::env;
 
 #[test]
-#[ignore] // Run with: cargo test --test integration_test -- --ignored
 fn test_end_to_end_workflow() {
     // Get token from environment variable or config file
     let token = env::var("TODOIST_TOKEN")
