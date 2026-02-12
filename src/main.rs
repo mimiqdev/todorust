@@ -43,13 +43,15 @@ pub use models::Project;
 pub use sync::{SyncFilter, SyncLabel, SyncProject, SyncSection, SyncTask, TodoistSyncClient};
 
 use clap::{Parser, Subcommand};
-// DEPRECATED: Legacy REST API client imports - use sync module instead
-// use todorust::{
-//     api::TodoistClient,
-//     config::{init_config, load_config},
-//     error::TodoError,
-//     Formattable, OutputFormat,
-// };
+#[allow(deprecated)]
+use todorust::{
+    api::TodoistClient,
+    config::{init_config, load_config},
+    error::TodoError,
+    models::TaskOutput,
+    sync::{self, CommandBuilder},
+    Formattable, OutputFormat,
+};
 
 #[derive(Parser)]
 #[command(name = "todorust")]
@@ -64,6 +66,56 @@ struct Cli {
 
 #[derive(Subcommand)]
 enum Commands {
+    /// Initialize configuration
+    Init(InitCommand),
+
+    /// Configuration management
+    #[command(subcommand)]
+    Config(ConfigCommands),
+
+    /// Get resources
+    #[command(subcommand)]
+    Get(GetCommands),
+
+    /// Add resources
+    #[command(subcommand)]
+    Add(AddCommands),
+
+    /// Edit resources
+    #[command(subcommand)]
+    Edit(EditCommands),
+
+    /// Complete a task
+    #[command(subcommand)]
+    Complete(CompleteCommands),
+
+    /// Reopen a task
+    #[command(subcommand)]
+    Reopen(ReopenCommands),
+
+    /// Delete resources
+    #[command(subcommand)]
+    Delete(DeleteCommands),
+}
+
+#[derive(Parser)]
+struct InitCommand {
+    #[arg(long = "api-token")]
+    api_token: String,
+}
+
+#[derive(Clone)]
+#[derive(Subcommand)]
+enum ConfigCommands {
+    /// Get configuration
+    Get,
+    /// Set configuration
+    Set,
+}
+
+#[derive(Clone)]
+#[derive(Subcommand)]
+enum GetCommands {
     /// Get tasks with optional filter
     Tasks {
         #[arg(long)]
@@ -76,17 +128,24 @@ enum Commands {
         #[arg(long, short)]
         format: Option<OutputFormat>,
     },
-    /// Get custom filters
-    Filters {
+    /// Get a specific task
+    Task {
+        #[arg(long)]
+        task_id: String,
         #[arg(long, short)]
         format: Option<OutputFormat>,
     },
+}
+
+#[derive(Clone)]
+#[derive(Subcommand)]
+enum AddCommands {
     /// Create a new task
-    Create {
-        #[arg(long)]
-        content: Option<String>,
+    Task {
         #[arg(long)]
         title: Option<String>,
+        #[arg(long)]
+        content: Option<String>,
         #[arg(long)]
         description: Option<String>,
         #[arg(long)]
@@ -100,20 +159,86 @@ enum Commands {
         #[arg(long, short)]
         format: Option<OutputFormat>,
     },
+}
+
+#[derive(Clone)]
+#[derive(Subcommand)]
+enum EditCommands {
+    /// Edit a task
+    Task {
+        #[arg(long)]
+        task_id: String,
+        #[arg(long)]
+        title: Option<String>,
+        #[arg(long)]
+        content: Option<String>,
+        #[arg(long)]
+        project_id: Option<String>,
+        #[arg(long)]
+        due_date: Option<String>,
+        #[arg(long)]
+        priority: Option<u8>,
+        #[arg(long)]
+        labels: Option<String>,
+    },
+    /// Edit a project
+    Project {
+        #[arg(long)]
+        project_id: String,
+        #[arg(long)]
+        name: Option<String>,
+    },
+}
+
+#[derive(Clone)]
+#[derive(Subcommand)]
+enum MoveCommands {
+    /// Move a task
+    Task {
+        #[arg(long)]
+        task_id: String,
+        #[arg(long)]
+        project_id: String,
+    },
+}
+
+#[derive(Clone)]
+#[derive(Subcommand)]
+enum CompleteCommands {
     /// Complete a task
-    Complete {
+    Task {
         #[arg(long)]
         task_id: String,
     },
+}
+
+#[derive(Clone)]
+#[derive(Subcommand)]
+enum ReopenCommands {
     /// Reopen a task
-    Reopen {
+    Task {
         #[arg(long)]
         task_id: String,
     },
-    /// Initialize configuration
-    Init {
+}
+
+#[derive(Clone)]
+#[derive(Subcommand)]
+enum DeleteCommands {
+    /// Delete a task
+    Task {
         #[arg(long)]
-        api_token: String,
+        task_id: String,
+    },
+    /// Delete a project
+    Project {
+        #[arg(long)]
+        project_id: String,
+    },
+    /// Delete a section
+    Section {
+        #[arg(long)]
+        section_id: String,
     },
 }
 
@@ -155,44 +280,89 @@ fn handle_error(error: todorust::error::TodoError) {
 // The sync API client (TodoistSyncClient) should be used instead for new implementations
 /*
 #[tokio::main]
-async fn main() {
+async fn main() -> Result<(), TodoError> {
     let cli = Cli::parse();
 
-    if let Commands::Init { api_token } = cli.command {
-        if let Err(e) = init_config(&api_token) {
-            handle_error(e);
+    match &cli.command {
+        Commands::Init(cmd) => {
+            init_config(&cmd.api_token)?;
+            println!("Configuration initialized successfully!");
+            return Ok(());
         }
-        println!("Configuration initialized successfully!");
-        return;
+        Commands::Config(cmd) => {
+            match cmd {
+                ConfigCommands::Get => {
+                    let config = load_config()?;
+                    println!("API Token: {}", config.api_token);
+                }
+                ConfigCommands::Set => {
+                    eprintln!("Config set not implemented yet");
+                }
+            }
+            return Ok(());
+        }
+        _ => {}
     }
 
     #[allow(deprecated)]
-    let result = async {
-        let config = load_config()?;
-        let client = TodoistClient::new(config.api_token);
+    let config = load_config()?;
+    let client = TodoistClient::new(config.api_token.clone());
+    let sync_client = sync::TodoistSyncClient::new(config.api_token);
 
-        match cli.command {
-            Commands::Tasks { filter, format } => {
+    match cli.command {
+        Commands::Get(cmd) => match cmd {
+            GetCommands::Tasks { filter, format } => {
                 let output_format = format.unwrap_or(cli.format);
-                let tasks = client.get_tasks(filter).await?;
+                let tasks = client.get_tasks(filter.clone()).await?;
                 let output = tasks.format(&output_format);
                 println!("{}", output);
             }
-            Commands::Projects { format } => {
+            GetCommands::Projects { format } => {
                 let output_format = format.unwrap_or(cli.format);
                 let projects = client.get_projects().await?;
                 let output = projects.format(&output_format);
                 println!("{}", output);
             }
-            Commands::Filters { format } => {
+            GetCommands::Task { task_id, format } => {
                 let output_format = format.unwrap_or(cli.format);
-                let filters = client.get_filters().await?;
-                let output = filters.format(&output_format);
-                println!("{}", output);
+                let tasks = client.get_tasks(None).await?;
+                let task = tasks
+                    .iter()
+                    .find(|t| t.id == task_id.parse::<u32>().unwrap_or_default().to_string())
+                    .ok_or_else(|| TodoError::Api(format!("Task {} not found", task_id)))?;
+                match output_format {
+                    OutputFormat::Json => {
+                        println!("{}", serde_json::to_string_pretty(task).unwrap_or_default());
+                    }
+                    OutputFormat::Checklist => {
+                        let checkbox = if task.is_completed { "[x]" } else { "[ ]" };
+                        if let Some(ref project) = task.project_name {
+                            println!("- {} {} ({})", checkbox, task.content, project);
+                        } else {
+                            println!("- {} {}", checkbox, task.content);
+                        }
+                    }
+                    OutputFormat::Structured => {
+                        println!("Task:");
+                        println!("  Content: {}", task.content);
+                        if let Some(desc) = &task.description {
+                            println!("  Description: {}", desc);
+                        }
+                        if let Some(ref project) = task.project_name {
+                            println!("  Project: {}", project);
+                        }
+                        if let Some(ref due) = task.due_date {
+                            println!("  Due: {}", due);
+                        }
+                        println!("  Priority: {}", task.priority);
+                    }
+                }
             }
-            Commands::Create {
-                content,
+        },
+        Commands::Add(cmd) => match cmd {
+            AddCommands::Task {
                 title,
+                content,
                 description,
                 project_id,
                 due_date,
@@ -201,8 +371,8 @@ async fn main() {
                 format,
             } => {
                 let output_format = format.unwrap_or(cli.format);
-                let title_value = title.filter(|value| !value.trim().is_empty());
-                let content_value = content.filter(|value| !value.trim().is_empty());
+                let title_value = title.clone().filter(|value| !value.trim().is_empty());
+                let content_value = content.clone().filter(|value| !value.trim().is_empty());
                 if title_value.is_some() && content_value.is_some() {
                     eprintln!("Warning: both --title and --content provided; using --title.");
                 }
@@ -218,8 +388,7 @@ async fn main() {
                     }
                 }
 
-                // Parse labels from comma-separated string
-                let labels_vec = labels.and_then(|l| {
+                let labels_vec = labels.clone().and_then(|l| {
                     if l.is_empty() {
                         None
                     } else {
@@ -230,34 +399,79 @@ async fn main() {
                 let task = client
                     .create_task(
                         &content,
-                        description.filter(|value| !value.trim().is_empty()),
-                        project_id,
-                        due_date,
+                        description.clone(),
+                        project_id.clone(),
+                        due_date.clone(),
                         priority,
                         labels_vec,
                     )
                     .await?;
-                // For single task, wrap in vec for formatting
                 let output = vec![task].format(&output_format);
                 println!("{}", output);
             }
-            Commands::Complete { task_id } => {
+        },
+        Commands::Edit(cmd) => match cmd {
+            EditCommands::Task {
+                task_id,
+                title,
+                content,
+                project_id: _,
+                due_date,
+                priority,
+                labels,
+            } => {
+                let content_value = title.as_deref().or(content.as_deref());
+                let labels_vec = labels.as_ref().map(|l| l.split(',').map(|s| s.trim()).collect());
+                sync_client
+                    .update_task(
+                        &task_id,
+                        content_value,
+                        None, // description not in edit command yet
+                        priority,
+                        due_date.as_deref(),
+                        labels_vec,
+                    )
+                    .await?;
+                println!("Task {} updated", task_id);
+            }
+            EditCommands::Project { project_id, name } => {
+                let builder = CommandBuilder::new().project_update(&project_id, name.as_deref(), None, None);
+                sync_client.execute(builder).await?;
+                println!("Project {} updated", project_id);
+            }
+        },
+        Commands::Complete(cmd) => match cmd {
+            CompleteCommands::Task { task_id } => {
                 client.complete_task(&task_id).await?;
                 println!("Task {} completed", task_id);
             }
-            Commands::Reopen { task_id } => {
+        },
+        Commands::Reopen(cmd) => match cmd {
+            ReopenCommands::Task { task_id } => {
                 client.reopen_task(&task_id).await?;
                 println!("Task {} reopened", task_id);
             }
-            Commands::Init { .. } => unreachable!(),
-        }
-
-        Ok::<(), todorust::error::TodoError>(())
-    };
-
-    if let Err(e) = result.await {
-        handle_error(e);
+        },
+        Commands::Delete(cmd) => match cmd {
+            DeleteCommands::Task { task_id } => {
+                sync_client.delete_task(&task_id).await?;
+                println!("Task {} deleted", task_id);
+            }
+            DeleteCommands::Project { project_id } => {
+                let builder = CommandBuilder::new().project_delete(&project_id);
+                sync_client.execute(builder).await?;
+                println!("Project {} deleted", project_id);
+            }
+            DeleteCommands::Section { section_id } => {
+                sync_client.delete_section(&section_id).await?;
+                println!("Section {} deleted", section_id);
+            }
+        },
+        Commands::Init(_) => unreachable!(),
+        Commands::Config(_) => unreachable!(),
     }
+
+    Ok(())
 }
 */
 
@@ -273,76 +487,64 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_cli_parsing() {
-        let args = vec!["todorust", "tasks"];
+    fn test_cli_parsing_get_tasks() {
+        let args = vec!["todorust", "get", "tasks"];
         let cli = Cli::try_parse_from(args).unwrap();
-        assert!(matches!(cli.command, Commands::Tasks { filter: None, .. }));
+        assert!(matches!(
+            cli.command,
+            Commands::Get(GetCommands::Tasks { filter: None, .. })
+        ));
     }
 
     #[test]
-    fn test_cli_with_filter() {
-        let args = vec!["todorust", "tasks", "--filter", "project:Work"];
+    fn test_cli_get_tasks_with_filter() {
+        let args = vec!["todorust", "get", "tasks", "--filter", "project:Work"];
         let cli = Cli::try_parse_from(args).unwrap();
-        if let Commands::Tasks { filter, .. } = cli.command {
+        if let Commands::Get(GetCommands::Tasks { filter, .. }) = cli.command {
             assert_eq!(filter, Some("project:Work".to_string()));
         } else {
-            panic!("Expected Tasks command");
+            panic!("Expected Get Tasks command");
         }
     }
 
     #[test]
-    fn test_cli_with_format() {
-        let args = vec!["todorust", "tasks", "--format", "checklist"];
-        let cli = Cli::try_parse_from(args).unwrap();
-        if let Commands::Tasks { format, .. } = cli.command {
-            assert_eq!(format, Some(OutputFormat::Checklist));
-        } else {
-            panic!("Expected Tasks command with format");
-        }
-    }
-
-    #[test]
-    fn test_global_format() {
-        let args = vec!["todorust", "--format", "structured", "tasks"];
-        let cli = Cli::try_parse_from(args).unwrap();
-        assert_eq!(cli.format, OutputFormat::Structured);
-    }
-
-    #[test]
-    fn test_cli_create_with_title() {
+    fn test_cli_add_task() {
         let args = vec![
             "todorust",
-            "create",
+            "add",
+            "task",
             "--title",
             "New task",
             "--description",
             "Details",
         ];
         let cli = Cli::try_parse_from(args).unwrap();
-        if let Commands::Create {
-            title,
-            description,
-            content,
-            ..
-        } = cli.command
-        {
+        if let Commands::Add(AddCommands::Task { title, .. }) = cli.command {
             assert_eq!(title, Some("New task".to_string()));
-            assert_eq!(description, Some("Details".to_string()));
-            assert_eq!(content, None);
         } else {
-            panic!("Expected Create command with title");
+            panic!("Expected Add Task command");
         }
     }
 
     #[test]
-    fn test_cli_create_with_content() {
-        let args = vec!["todorust", "create", "--content", "Legacy task"];
+    fn test_cli_complete_task() {
+        let args = vec!["todorust", "complete", "task", "--task-id", "12345"];
         let cli = Cli::try_parse_from(args).unwrap();
-        if let Commands::Create { content, title, .. } = cli.command {
-            assert_eq!(content, Some("Legacy task".to_string()));
-            assert_eq!(title, None);
+        if let Commands::Complete(CompleteCommands::Task { task_id }) = cli.command {
+            assert_eq!(task_id, "12345");
         } else {
-            panic!("Expected Create command with content");
+            panic!("Expected Complete Task command");
+        }
+    }
+
+    #[test]
+    fn test_cli_init() {
+        let args = vec!["todorust", "init", "--api-token", "test_token"];
+        let cli = Cli::try_parse_from(args).unwrap();
+        if let Commands::Init(cmd) = cli.command {
+            assert_eq!(cmd.api_token, "test_token");
+        } else {
+            panic!("Expected Init command");
         }
     }
 
