@@ -331,9 +331,10 @@ async fn main() -> crate::error::Result<()> {
             // Validate priority - return error if invalid
             let validated_priority = if let Some(p) = *priority {
                 if !validate_priority(p) {
-                    return Err(crate::error::TodoError::InvalidInput(
-                        format!("Invalid priority {}. Priority must be between 1 and 4.", p),
-                    ));
+                    return Err(crate::error::TodoError::InvalidInput(format!(
+                        "Invalid priority {}. Priority must be between 1 and 4.",
+                        p
+                    )));
                 }
                 Some(p)
             } else {
@@ -377,9 +378,10 @@ async fn main() -> crate::error::Result<()> {
             // Validate priority - return error if invalid
             if let Some(p) = *priority {
                 if !validate_priority(p) {
-                    handle_error(crate::error::TodoError::InvalidInput(
-                        format!("Invalid priority {}. Priority must be between 1 and 4.", p),
-                    ));
+                    handle_error(crate::error::TodoError::InvalidInput(format!(
+                        "Invalid priority {}. Priority must be between 1 and 4.",
+                        p
+                    )));
                 }
             }
 
