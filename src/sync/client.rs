@@ -192,7 +192,7 @@ impl TodoistSyncClient {
         self.execute_commands_with_status(&commands).await
     }
 
-    // ==================== 资源读取方法 ====================
+    // Resources: Read Methods
 
     /// 获取所有项目 (使用 Sync API)
     pub async fn get_projects(&self) -> Result<Vec<crate::models::Project>, TodoError> {
@@ -224,7 +224,7 @@ impl TodoistSyncClient {
         Ok(response.filters)
     }
 
-    // ==================== 资源写入方法 ====================
+    // Resources: Write Methods
 
     /// 添加项目 (使用 Sync API)
     pub async fn add_project(
@@ -596,7 +596,7 @@ mod tests {
         }
     }
 
-    // ==================== Task 6: test_sync_parse_error ====================
+
     #[tokio::test]
     async fn test_sync_parse_error() {
         let server = MockServer::start_async().await;
@@ -622,7 +622,7 @@ mod tests {
         assert!(result.is_err());
     }
 
-    // ==================== Task 7: test_check_sync_status (2 tests) ====================
+
     #[tokio::test]
     async fn test_check_sync_status_all_ok() {
         let client = TodoistSyncClient::new("test".to_string());
@@ -661,7 +661,7 @@ mod tests {
         assert!(result.is_err());
     }
 
-    // ==================== Task 8: test_execute_commands_success ====================
+
     #[tokio::test]
     async fn test_execute_commands_success() {
         let server = MockServer::start_async().await;
@@ -704,7 +704,7 @@ mod tests {
         assert!(result.is_ok());
     }
 
-    // ==================== Task 9: test_get_projects ====================
+
     #[tokio::test]
     async fn test_get_projects() {
         let server = MockServer::start_async().await;
@@ -744,7 +744,7 @@ mod tests {
         assert_eq!(projects[0].name, "Project A");
     }
 
-    // ==================== CRUD Tests for 80% Coverage ====================
+
     
     #[tokio::test]
     async fn test_get_tasks() {
@@ -807,7 +807,8 @@ mod tests {
             });
         });
         let client = TodoistSyncClient::new_with_url("test".to_string(), server.url("/api/v1/sync"));
-        client.delete_task("task_123").await.unwrap();
+        let result = client.delete_task("task_123").await;
+        assert!(result.is_ok(), "Delete task should succeed");
     }
 
     #[tokio::test]
@@ -826,7 +827,8 @@ mod tests {
             });
         });
         let client = TodoistSyncClient::new_with_url("test".to_string(), server.url("/api/v1/sync"));
-        client.complete_task("task_123").await.unwrap();
+        let result = client.complete_task("task_123").await;
+        assert!(result.is_ok(), "Complete task should succeed");
     }
 
     #[tokio::test]
@@ -865,7 +867,8 @@ mod tests {
             });
         });
         let client = TodoistSyncClient::new_with_url("test".to_string(), server.url("/api/v1/sync"));
-        client.update_task("task_1", Some("new content"), None, None, None, None).await.unwrap();
+        let result = client.update_task("task_1", Some("new content"), None, None, None, None).await;
+        assert!(result.is_ok(), "Update task should succeed");
     }
 
     #[tokio::test]
@@ -890,7 +893,10 @@ mod tests {
             args: serde_json::json!({"content": "test"}),
             temp_id: None,
         }];
-        client.execute_commands_with_status(&commands).await.unwrap();
+        let result = client.execute_commands_with_status(&commands).await;
+        assert!(result.is_ok(), "Execute commands with status should succeed");
+        let response = result.unwrap();
+        assert_eq!(response.sync_token, "token", "Should return correct sync token");
     }
 
     #[tokio::test]
@@ -914,5 +920,77 @@ mod tests {
         let client = TodoistSyncClient::new_with_url("test".to_string(), server.url("/api/v1/sync"));
         let sections = client.get_sections().await.unwrap();
         assert_eq!(sections.len(), 1);
+    }
+
+    #[tokio::test]
+    async fn test_get_labels() {
+        let server = MockServer::start_async().await;
+        let mock_response = serde_json::json!({
+            "projects": [],
+            "items": [],
+            "sections": [],
+            "labels": [
+                {"id": "1", "name": "Label 1", "color": "red", "order": 1},
+                {"id": "2", "name": "Label 2", "color": "blue", "order": 2}
+            ],
+            "filters": [],
+            "sync_token": "token"
+        });
+        let mock_clone = mock_response.clone();
+        server.mock(|when, then| {
+            when.method(Method::POST).path("/api/v1/sync");
+            then.respond_with(move |_req| {
+                HttpMockResponse::builder().status(200).body(mock_clone.to_string()).build()
+            });
+        });
+        let client = TodoistSyncClient::new_with_url("test".to_string(), server.url("/api/v1/sync"));
+        let labels = client.get_labels().await.unwrap();
+        assert_eq!(labels.len(), 2);
+        assert_eq!(labels[0].name, "Label 1");
+        assert_eq!(labels[1].name, "Label 2");
+    }
+
+    #[tokio::test]
+    async fn test_incremental_sync_with_token() {
+        let server = MockServer::start_async().await;
+        let mock_response = serde_json::json!({
+            "projects": [
+                {"id": "2", "name": "Updated Project", "color": "green", "shared": false, "favorite": false, "sort_order": 1, "is_archived": false, "is_deleted": false, "created_at": "2024-01-01T00:00:00Z", "updated_at": "2024-01-02T00:00:00Z"}
+            ],
+            "items": [],
+            "sections": [],
+            "labels": [],
+            "filters": [],
+            "sync_token": "new_token_456"
+        });
+        let mock_clone = mock_response.clone();
+        server.mock(|when, then| {
+            when.method(Method::POST)
+                .path("/api/v1/sync")
+                .header("Authorization", "Bearer test_token");
+            then.respond_with(move |_req: &httpmock::HttpMockRequest| {
+                HttpMockResponse::builder()
+                    .status(200)
+                    .body(mock_clone.to_string())
+                    .build()
+            });
+        });
+        
+        let client = TodoistSyncClient::new_with_url(
+            "test_token".to_string(),
+            server.url("/api/v1/sync")
+        );
+        // Set a non-"*" sync token for incremental sync
+        client.set_sync_token("initial_token_123".to_string());
+        
+        let response = client.sync(&["projects"]).await.unwrap();
+        
+        // Verify incremental sync works with the provided token
+        assert_eq!(response.projects.len(), 1);
+        assert_eq!(response.projects[0].name, "Updated Project");
+        
+        // Verify the sync token was updated after sync
+        let new_token = client.get_sync_token();
+        assert!(new_token.is_some());
     }
 }
