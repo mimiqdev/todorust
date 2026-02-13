@@ -214,7 +214,6 @@ enum DeleteCommands {
     },
 }
 
-#[allow(dead_code)]
 fn validate_priority(priority: u8) -> bool {
     (1..=4).contains(&priority)
 }
@@ -249,7 +248,7 @@ fn handle_error(error: crate::error::TodoError) -> ! {
 }
 
 #[tokio::main]
-async fn main() -> Result<(), Box<dyn std::error::Error>> {
+async fn main() -> crate::error::Result<()> {
     let cli = Cli::parse();
 
     // Handle init command separately (doesn't require config)
@@ -329,6 +328,18 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 })?
                 .clone();
 
+            // Validate priority - return error if invalid
+            let validated_priority = if let Some(p) = *priority {
+                if !validate_priority(p) {
+                    return Err(crate::error::TodoError::InvalidInput(
+                        format!("Invalid priority {}. Priority must be between 1 and 4.", p),
+                    ));
+                }
+                Some(p)
+            } else {
+                None
+            };
+
             let labels_vec: Option<Vec<&str>> = labels
                 .as_ref()
                 .map(|l| l.split(',').map(|s| s.trim()).collect());
@@ -340,7 +351,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     project_id.as_deref(),
                     None,
                     due_date.as_deref(),
-                    priority.map(|p| if validate_priority(p) { p } else { 1 }),
+                    validated_priority,
                     labels_vec,
                 )
                 .await?;
@@ -363,16 +374,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 .as_ref()
                 .map(|l| l.split(',').map(|s| s.trim()).collect());
 
-            // Validate priority and return error if invalid
-            let validated_priority = priority.inspect(|&p| {
+            // Validate priority - return error if invalid
+            if let Some(p) = *priority {
                 if !validate_priority(p) {
-                    eprintln!(
-                        "Error: Invalid priority {}. Priority must be between 1 and 4.",
-                        p
-                    );
-                    std::process::exit(1);
+                    handle_error(crate::error::TodoError::InvalidInput(
+                        format!("Invalid priority {}. Priority must be between 1 and 4.", p),
+                    ));
                 }
-            });
+            }
 
             // Update task fields
             client
@@ -380,7 +389,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     task_id,
                     task_content,
                     None,
-                    validated_priority,
+                    *priority,
                     due_date.as_deref(),
                     labels_vec,
                 )
