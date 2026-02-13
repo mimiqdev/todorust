@@ -29,12 +29,14 @@ Todorust uses a **verb-resource** command pattern for intuitive CLI usage.
 |---------|-------------|
 | `init` | Initialize configuration with Todoist API token |
 | `config` | Manage configuration settings |
-| `get` | Retrieve resources (tasks, projects, filters) |
-| `add` | Create new resources (tasks) |
-| `edit` | Modify existing resources |
+| `get` | Retrieve resources (tasks, projects, filters, sections, labels) |
+| `add` | Create new resources (tasks, projects, sections, filters, labels) |
+| `edit` | Modify existing resources (tasks, sections, filters, labels) |
+| `move` | Move tasks between sections/projects |
 | `complete` | Mark tasks as completed |
 | `reopen` | Reopen completed tasks |
 | `delete` | Remove resources |
+| `reorder` | Reorder sections |
 
 ### Command Usage Examples
 
@@ -78,6 +80,14 @@ todorust get projects --format checklist
 # Get filters
 todorust get filters
 todorust get filters --format structured
+
+# Get labels
+todorust get labels
+todorust get labels --format structured
+
+# Get sections
+todorust get sections
+todorust get sections --project-id "123"
 ```
 
 #### add - Create Resources
@@ -92,6 +102,18 @@ todorust add task --title "Write report" --project-id "123" --due-date "2026-01-
 
 # Create task with labels
 todorust add task --title "Urgent task" --labels "urgent,work"
+
+# Create a new project
+todorust add project --name "New Project"
+
+# Create a new section
+todorust add section --name "New Section" --project-id "123"
+
+# Create a new filter
+todorust add filter --name "My Filter" --query "query string"
+
+# Create a new label
+todorust add label --name "new-label"
 ```
 
 #### edit - Modify Resources
@@ -101,6 +123,32 @@ todorust add task --title "Urgent task" --labels "urgent,work"
 todorust edit task --task-id "456" --title "Updated title"
 todorust edit task --task-id "456" --description "New description"
 todorust edit task --task-id "456" --priority 3
+
+# Edit a section
+todorust edit section --section-id "123" --name "New section name"
+
+# Edit a filter
+todorust edit filter --filter-id "123" --name "Updated filter" --query "query string"
+
+# Edit a label
+todorust edit label --label-id "123" --name "Updated label name"
+```
+
+#### move - Move Tasks
+
+```bash
+# Move a task to a different section
+todorust move task --task-id "456" --section-id "789"
+
+# Move a task to a different project
+todorust move task --task-id "456" --project-id "101"
+```
+
+#### reorder - Reorder Sections
+
+```bash
+# Reorder sections within a project
+todorust reorder sections --project-id "123" --section-ids "456,789,101"
 ```
 
 #### complete - Complete Tasks
