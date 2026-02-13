@@ -107,14 +107,14 @@ todorust edit task --task-id "456" --priority 3
 
 ```bash
 # Mark a task as completed
-todorust complete --task-id "456"
+todorust complete task --task-id "456"
 ```
 
 #### reopen - Reopen Tasks
 
 ```bash
 # Reopen a completed task
-todorust reopen --task-id "456"
+todorust reopen task --task-id "456"
 ```
 
 #### delete - Remove Resources

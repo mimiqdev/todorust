@@ -383,7 +383,14 @@ async fn main() -> crate::error::Result<()> {
                 }
             }
 
-            // Update task fields
+            // If project_id is provided, move the task to the new project first
+            if let Some(ref new_project_id) = project_id {
+                let builder =
+                    crate::sync::CommandBuilder::new().item_move(task_id, new_project_id, None);
+                client.execute(builder).await?;
+            }
+
+            // Update task fields after move
             client
                 .update_task(
                     task_id,
@@ -394,13 +401,6 @@ async fn main() -> crate::error::Result<()> {
                     labels_vec,
                 )
                 .await?;
-
-            // If project_id is provided, move the task to the new project
-            if let Some(ref new_project_id) = project_id {
-                let builder =
-                    crate::sync::CommandBuilder::new().item_move(task_id, new_project_id, None);
-                client.execute(builder).await?;
-            }
 
             println!("Task {} updated", task_id);
         }
