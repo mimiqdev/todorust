@@ -328,4 +328,127 @@ mod tests {
         assert!(!validate_priority(0));
         assert!(!validate_priority(5));
     }
+
+    #[test]
+    fn test_cli_delete_task() {
+        let args = vec!["todorust", "delete", "task", "--task-id", "67890"];
+        let cli = Cli::try_parse_from(args).unwrap();
+        if let Commands::Delete(DeleteCommands::Task { task_id }) = cli.command {
+            assert_eq!(task_id, "67890");
+        } else {
+            panic!("Expected Delete Task command");
+        }
+    }
+
+    #[test]
+    fn test_cli_delete_project() {
+        let args = vec!["todorust", "delete", "project", "--project-id", "proj123"];
+        let cli = Cli::try_parse_from(args).unwrap();
+        if let Commands::Delete(DeleteCommands::Project { project_id }) = cli.command {
+            assert_eq!(project_id, "proj123");
+        } else {
+            panic!("Expected Delete Project command");
+        }
+    }
+
+    #[test]
+    fn test_cli_delete_section() {
+        let args = vec!["todorust", "delete", "section", "--section-id", "sec456"];
+        let cli = Cli::try_parse_from(args).unwrap();
+        if let Commands::Delete(DeleteCommands::Section { section_id }) = cli.command {
+            assert_eq!(section_id, "sec456");
+        } else {
+            panic!("Expected Delete Section command");
+        }
+    }
+
+    #[test]
+    fn test_cli_reopen_task() {
+        let args = vec!["todorust", "reopen", "task", "--task-id", "11122"];
+        let cli = Cli::try_parse_from(args).unwrap();
+        if let Commands::Reopen(ReopenCommands::Task { task_id }) = cli.command {
+            assert_eq!(task_id, "11122");
+        } else {
+            panic!("Expected Reopen Task command");
+        }
+    }
+
+    #[test]
+    fn test_cli_edit_task() {
+        let args = vec![
+            "todorust",
+            "edit",
+            "task",
+            "--task-id",
+            "33344",
+            "--priority",
+            "3",
+            "--title",
+            "Updated Task",
+        ];
+        let cli = Cli::try_parse_from(args).unwrap();
+        if let Commands::Edit(EditCommands::Task { task_id, priority, .. }) = cli.command {
+            assert_eq!(task_id, "33344");
+            assert_eq!(priority, Some(3));
+        } else {
+            panic!("Expected Edit Task command");
+        }
+    }
+
+    #[test]
+    fn test_cli_edit_project() {
+        let args = vec![
+            "todorust",
+            "edit",
+            "project",
+            "--project-id",
+            "proj555",
+            "--name",
+            "New Project Name",
+        ];
+        let cli = Cli::try_parse_from(args).unwrap();
+        if let Commands::Edit(EditCommands::Project { project_id, name }) = cli.command {
+            assert_eq!(project_id, "proj555");
+            assert_eq!(name, Some("New Project Name".to_string()));
+        } else {
+            panic!("Expected Edit Project command");
+        }
+    }
+
+    #[test]
+    fn test_cli_add_task_full() {
+        let args = vec![
+            "todorust",
+            "add",
+            "task",
+            "--title",
+            "Full Task",
+            "--content",
+            "Task content here",
+            "--description",
+            "Detailed description",
+            "--priority",
+            "4",
+            "--labels",
+            "work,urgent",
+        ];
+        let cli = Cli::try_parse_from(args).unwrap();
+        if let Commands::Add(AddCommands::Task {
+            title,
+            content,
+            description,
+            priority,
+            labels,
+            ..
+        }) = cli.command
+        {
+            assert_eq!(title, Some("Full Task".to_string()));
+            assert_eq!(content, Some("Task content here".to_string()));
+            assert_eq!(description, Some("Detailed description".to_string()));
+            assert_eq!(priority, Some(4));
+            assert_eq!(labels, Some("work,urgent".to_string()));
+        } else {
+            panic!("Expected Add Task command");
+        }
+    }
 }
