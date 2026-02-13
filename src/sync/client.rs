@@ -52,7 +52,12 @@ impl TodoistSyncClient {
     ///
     /// A new `TodoistSyncClient` instance
     pub fn new(token: String) -> Self {
-        Self::new_with_url(token, "https://api.todoist.com/api/v1/sync".to_string())
+        Self {
+            token,
+            sync_url: "https://api.todoist.com/api/v1/sync".to_string(),
+            sync_token: RefCell::new(None),
+            http: HttpClient::new(),
+        }
     }
 
     #[cfg(test)]
@@ -451,7 +456,10 @@ impl TodoistSyncClient {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use httpmock::{Method, MockServer, HttpMockResponse};
     use tokio::test;
+
+    // ... existing tests ...
 
     #[test]
     async fn test_client_new() {
@@ -516,5 +524,46 @@ mod tests {
         let client = TodoistSyncClient::new("test".to_string());
         assert!(client.sync_url.starts_with("https://api.todoist.com"));
         assert!(client.sync_url.contains("/v1/sync"));
+    }
+
+    #[tokio::test]
+    async fn test_sync_success() {
+        // 启动 mock server
+        let server = MockServer::start_async().await;
+
+        // 设置 mock 响应
+        let mock_response = serde_json::json!({
+            "projects": [
+                {"id": "1", "name": "Test Project", "color": "red", "shared": false, "favorite": false, "sort_order": 1, "is_archived": false, "is_deleted": false, "created_at": "2024-01-01T00:00:00Z", "updated_at": "2024-01-01T00:00:00Z"}
+            ],
+            "items": [],
+            "sections": [],
+            "labels": [],
+            "filters": [],
+            "sync_token": "test_token_123"
+        });
+
+        let mock_response_clone = mock_response.clone();
+        server.mock(|when, then| {
+            when.method(Method::POST)
+                .path("/api/v1/sync");
+            then.respond_with(move |_req: &httpmock::HttpMockRequest| {
+                HttpMockResponse::builder()
+                    .status(200)
+                    .body(mock_response_clone.to_string())
+                    .build()
+            });
+        });
+
+        // 创建 client 指向 mock server
+        let client = TodoistSyncClient::new_with_url(
+            "test_token".to_string(),
+            server.url("/api/v1/sync")
+        );
+
+        let response = client.sync(&["projects"]).await.unwrap();
+
+        assert_eq!(response.projects.len(), 1);
+        assert_eq!(response.projects[0].name, "Test Project");
     }
 }
