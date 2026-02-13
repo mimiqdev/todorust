@@ -12,6 +12,7 @@
  */
 
 use crate::models::{Filter, Project, TaskOutput};
+use crate::sync::SyncSection;
 use clap::ValueEnum;
 
 #[derive(Clone, Debug, PartialEq, ValueEnum)]
@@ -177,6 +178,54 @@ fn format_filters_structured(filters: &[Filter]) -> String {
                 "### {}\n\n**Filter:** `{}`\n**ID:** {}\n",
                 filter.name, filter.query, filter.id
             )
+        })
+        .collect::<Vec<_>>()
+        .join("\n\n")
+}
+
+impl Formattable for Vec<SyncSection> {
+    fn format(&self, format: &OutputFormat) -> String {
+        match format {
+            OutputFormat::Json => format_json_sections(self),
+            OutputFormat::Checklist => format_sections_checklist(self),
+            OutputFormat::Structured => format_sections_structured(self),
+        }
+    }
+}
+
+fn format_json_sections(sections: &[SyncSection]) -> String {
+    serde_json::to_string_pretty(sections).unwrap_or_default()
+}
+
+fn format_sections_checklist(sections: &[SyncSection]) -> String {
+    sections
+        .iter()
+        .map(|section| format!("- [ ] {} (Project: {})", section.name, section.project_id))
+        .collect::<Vec<_>>()
+        .join("\n")
+}
+
+fn format_sections_structured(sections: &[SyncSection]) -> String {
+    use std::collections::HashMap;
+
+    let mut grouped: HashMap<&str, Vec<&SyncSection>> = HashMap::new();
+
+    for section in sections {
+        grouped.entry(section.project_id.as_str()).or_default().push(section);
+    }
+
+    let mut projects: Vec<_> = grouped.into_iter().collect();
+    projects.sort_by(|a, b| a.0.cmp(b.0));
+
+    projects
+        .iter()
+        .map(|(project_id, sections)| {
+            let sections_str = sections
+                .iter()
+                .map(|s| format!("- [ ] {} (ID: {})", s.name, s.id))
+                .collect::<Vec<_>>()
+                .join("\n");
+            format!("## Project: {}\n\n{}", project_id, sections_str)
         })
         .collect::<Vec<_>>()
         .join("\n\n")
@@ -395,5 +444,79 @@ mod tests {
         let output = filters.format(&OutputFormat::Json);
         assert!(output.contains("\"name\""));
         assert!(output.contains("Test"));
+    }
+
+    // Tests for section formatting
+    fn mock_sections() -> Vec<SyncSection> {
+        vec![
+            SyncSection {
+                id: "s1".to_string(),
+                project_id: "p1".to_string(),
+                name: "Section 1".to_string(),
+                order: 1,
+                is_archived: false,
+                is_deleted: false,
+                created_at: "2026-01-10T10:00:00Z".to_string(),
+                archived_at: None,
+                is_collapsed: None,
+            },
+            SyncSection {
+                id: "s2".to_string(),
+                project_id: "p1".to_string(),
+                name: "Section 2".to_string(),
+                order: 2,
+                is_archived: false,
+                is_deleted: false,
+                created_at: "2026-01-11T10:00:00Z".to_string(),
+                archived_at: None,
+                is_collapsed: None,
+            },
+            SyncSection {
+                id: "s3".to_string(),
+                project_id: "p2".to_string(),
+                name: "Section 3".to_string(),
+                order: 1,
+                is_archived: false,
+                is_deleted: false,
+                created_at: "2026-01-12T10:00:00Z".to_string(),
+                archived_at: None,
+                is_collapsed: None,
+            },
+        ]
+    }
+
+    #[test]
+    fn test_format_sections_json() {
+        let sections = mock_sections();
+        let output = sections.format(&OutputFormat::Json);
+        assert!(output.contains("Section 1"));
+        assert!(output.contains("Section 2"));
+        assert!(output.contains("Section 3"));
+    }
+
+    #[test]
+    fn test_format_sections_checklist() {
+        let sections = mock_sections();
+        let output = sections.format(&OutputFormat::Checklist);
+        assert!(output.contains("- [ ] Section 1 (Project: p1)"));
+        assert!(output.contains("- [ ] Section 2 (Project: p1)"));
+        assert!(output.contains("- [ ] Section 3 (Project: p2)"));
+    }
+
+    #[test]
+    fn test_format_sections_structured() {
+        let sections = mock_sections();
+        let output = sections.format(&OutputFormat::Structured);
+        assert!(output.contains("## Project: p1"));
+        assert!(output.contains("## Project: p2"));
+        assert!(output.contains("Section 1"));
+        assert!(output.contains("Section 3"));
+    }
+
+    #[test]
+    fn test_format_empty_sections() {
+        let sections: Vec<SyncSection> = vec![];
+        let output = sections.format(&OutputFormat::Checklist);
+        assert_eq!(output, "");
     }
 }

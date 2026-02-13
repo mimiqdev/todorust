@@ -87,6 +87,10 @@ enum Commands {
     /// Delete resources
     #[command(subcommand)]
     Delete(DeleteCommands),
+
+    /// Move resources
+    #[command(subcommand)]
+    Move(MoveCommands),
 }
 
 #[derive(Parser)]
@@ -124,6 +128,13 @@ enum GetCommands {
         #[arg(long, short)]
         format: Option<OutputFormat>,
     },
+    /// Get all sections (optionally filtered by project)
+    Sections {
+        #[arg(long)]
+        project_id: Option<String>,
+        #[arg(long, short)]
+        format: Option<OutputFormat>,
+    },
 }
 
 #[derive(Clone, Subcommand)]
@@ -146,6 +157,13 @@ enum AddCommands {
         labels: Option<String>,
         #[arg(long, short)]
         format: Option<OutputFormat>,
+    },
+    /// Create a new section
+    Section {
+        #[arg(long)]
+        name: String,
+        #[arg(long)]
+        project_id: String,
     },
 }
 
@@ -211,6 +229,20 @@ enum DeleteCommands {
     Section {
         #[arg(long)]
         section_id: String,
+    },
+}
+
+/// Move commands - for moving tasks between projects/sections
+#[derive(Clone, Subcommand)]
+enum MoveCommands {
+    /// Move a task to a different project or section
+    Task {
+        #[arg(long)]
+        task_id: String,
+        #[arg(long)]
+        project_id: String,
+        #[arg(long)]
+        section_id: Option<String>,
     },
 }
 
@@ -282,6 +314,7 @@ async fn main() -> crate::error::Result<()> {
         Commands::Get(GetCommands::Tasks { format, .. }) => format.clone().unwrap_or(cli.format),
         Commands::Get(GetCommands::Projects { format, .. }) => format.clone().unwrap_or(cli.format),
         Commands::Get(GetCommands::Task { format, .. }) => format.clone().unwrap_or(cli.format),
+        Commands::Get(GetCommands::Sections { format, .. }) => format.clone().unwrap_or(cli.format),
         _ => cli.format,
     };
 
@@ -305,6 +338,9 @@ async fn main() -> crate::error::Result<()> {
         }
         Commands::Get(GetCommands::Task { task_id, .. }) => {
             get_task(&client, task_id, &format).await?;
+        }
+        Commands::Get(GetCommands::Sections { project_id, .. }) => {
+            get_sections(&client, project_id.as_deref(), &format).await?;
         }
 
         // Add commands
@@ -358,6 +394,12 @@ async fn main() -> crate::error::Result<()> {
                 .await?;
 
             println!("Task created with ID: {}", task_id);
+        }
+
+        // Add section command
+        Commands::Add(AddCommands::Section { name, project_id }) => {
+            let section_id = client.add_section(name, project_id).await?;
+            println!("Section created with ID: {}", section_id);
         }
 
         // Edit commands
@@ -451,6 +493,24 @@ async fn main() -> crate::error::Result<()> {
             println!("Section {} deleted", section_id);
         }
 
+        // Move commands
+        Commands::Move(MoveCommands::Task {
+            task_id,
+            project_id,
+            section_id,
+        }) => {
+            let builder = crate::sync::CommandBuilder::new().item_move(
+                &task_id,
+                &project_id,
+                section_id.as_deref(),
+            );
+            client.execute(builder).await?;
+            println!("Task {} moved to project {}", task_id, project_id);
+            if let Some(sid) = section_id {
+                println!("Task {} moved to section {}", task_id, sid);
+            }
+        }
+
         // Init was handled above
         Commands::Init(_) => unreachable!(),
     }
@@ -526,6 +586,22 @@ async fn get_projects(
 ) -> crate::error::Result<()> {
     let projects = client.get_projects().await?;
     println!("{}", projects.format(format));
+    Ok(())
+}
+
+async fn get_sections(
+    client: &crate::sync::TodoistSyncClient,
+    project_id: Option<&str>,
+    format: &crate::formatter::OutputFormat,
+) -> crate::error::Result<()> {
+    let mut sections = client.get_sections().await?;
+
+    // Filter by project_id if provided
+    if let Some(pid) = project_id {
+        sections.retain(|s| s.project_id == pid);
+    }
+
+    println!("{}", sections.format(format));
     Ok(())
 }
 
@@ -789,5 +865,124 @@ mod tests {
         } else {
             panic!("Expected Add Task command");
         }
+    }
+
+    // Tests for new P0 CLI commands: move task, get sections, add section
+
+    #[test]
+    fn test_cli_get_sections() {
+        let args = vec!["todorust", "get", "sections"];
+        let cli = Cli::try_parse_from(args).unwrap();
+        assert!(matches!(
+            cli.command,
+            Commands::Get(GetCommands::Sections { project_id: None, .. })
+        ));
+    }
+
+    #[test]
+    fn test_cli_get_sections_with_project_id() {
+        let args = vec![
+            "todorust",
+            "get",
+            "sections",
+            "--project-id",
+            "proj123",
+        ];
+        let cli = Cli::try_parse_from(args).unwrap();
+        if let Commands::Get(GetCommands::Sections { project_id, .. }) = cli.command {
+            assert_eq!(project_id, Some("proj123".to_string()));
+        } else {
+            panic!("Expected Get Sections command");
+        }
+    }
+
+    #[test]
+    fn test_cli_add_section() {
+        let args = vec![
+            "todorust",
+            "add",
+            "section",
+            "--name",
+            "New Section",
+            "--project-id",
+            "proj456",
+        ];
+        let cli = Cli::try_parse_from(args).unwrap();
+        if let Commands::Add(AddCommands::Section { name, project_id }) = cli.command {
+            assert_eq!(name, "New Section");
+            assert_eq!(project_id, "proj456");
+        } else {
+            panic!("Expected Add Section command");
+        }
+    }
+
+    #[test]
+    fn test_cli_move_task() {
+        let args = vec![
+            "todorust",
+            "move",
+            "task",
+            "--task-id",
+            "task789",
+            "--project-id",
+            "proj123",
+        ];
+        let cli = Cli::try_parse_from(args).unwrap();
+        if let Commands::Move(MoveCommands::Task {
+            task_id,
+            project_id,
+            section_id,
+        }) = cli.command
+        {
+            assert_eq!(task_id, "task789");
+            assert_eq!(project_id, "proj123");
+            assert_eq!(section_id, None);
+        } else {
+            panic!("Expected Move Task command");
+        }
+    }
+
+    #[test]
+    fn test_cli_move_task_with_section() {
+        let args = vec![
+            "todorust",
+            "move",
+            "task",
+            "--task-id",
+            "task456",
+            "--project-id",
+            "proj789",
+            "--section-id",
+            "sec123",
+        ];
+        let cli = Cli::try_parse_from(args).unwrap();
+        if let Commands::Move(MoveCommands::Task {
+            task_id,
+            project_id,
+            section_id,
+        }) = cli.command
+        {
+            assert_eq!(task_id, "task456");
+            assert_eq!(project_id, "proj789");
+            assert_eq!(section_id, Some("sec123".to_string()));
+        } else {
+            panic!("Expected Move Task command");
+        }
+    }
+
+    #[test]
+    fn test_cli_get_sections_format_option() {
+        let args = vec![
+            "todorust",
+            "get",
+            "sections",
+            "--format",
+            "checklist",
+        ];
+        let cli = Cli::try_parse_from(args).unwrap();
+        assert!(matches!(
+            cli.command,
+            Commands::Get(GetCommands::Sections { .. })
+        ));
     }
 }

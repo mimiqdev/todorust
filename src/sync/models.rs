@@ -3,7 +3,7 @@
 //! This module contains data structures specific to the Todoist Sync API.
 //! These models handle the JSON responses from the sync endpoint.
 
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
 use crate::models::{Due, Project, Task};
@@ -85,7 +85,7 @@ pub struct SyncTask {
 }
 
 /// Sync 分区
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct SyncSection {
     pub id: String,
     pub project_id: String,
