@@ -220,39 +220,258 @@ fn validate_priority(priority: u8) -> bool {
 }
 
 #[allow(dead_code)]
-fn handle_error(error: todorust::error::TodoError) {
+fn handle_error(error: crate::error::TodoError) -> ! {
     match &error {
-        todorust::error::TodoError::ConfigNotFound => {
+        crate::error::TodoError::ConfigNotFound => {
             eprintln!("Error: Configuration not found.");
             eprintln!("Run: todorust init --api-token YOUR_TOKEN");
         }
-        todorust::error::TodoError::Http(status) => {
+        crate::error::TodoError::Http(status) => {
             eprintln!("Error: HTTP {}", status);
         }
-        todorust::error::TodoError::Api(msg) => {
+        crate::error::TodoError::Api(msg) => {
             eprintln!("API Error: {}", msg);
         }
-        todorust::error::TodoError::Request(e) => {
+        crate::error::TodoError::Request(e) => {
             eprintln!("Request Error: {}", e);
         }
-        todorust::error::TodoError::Config(msg) => {
+        crate::error::TodoError::Config(msg) => {
             eprintln!("Config Error: {}", msg);
         }
-        todorust::error::TodoError::InvalidInput(msg) => {
+        crate::error::TodoError::InvalidInput(msg) => {
             eprintln!("Invalid Input: {}", msg);
         }
-        todorust::error::TodoError::Serialize(msg) => {
+        crate::error::TodoError::Serialize(msg) => {
             eprintln!("Serialize Error: {}", msg);
         }
     }
     std::process::exit(1);
 }
 
-fn main() {
-    eprintln!("Error: The legacy REST API CLI has been deprecated.");
-    eprintln!("Please use the library functionality via the sync API instead.");
-    eprintln!("The todorust binary is currently disabled pending migration to sync API.");
-    std::process::exit(1);
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let cli = Cli::parse();
+
+    // Handle init command separately (doesn't require config)
+    if let Commands::Init(init_cmd) = &cli.command {
+        if let Err(e) = crate::config::init_config(&init_cmd.api_token) {
+            handle_error(e);
+        }
+        return Ok(());
+    }
+
+    // Load config for other commands
+    let config = match crate::config::load_config() {
+        Ok(c) => c,
+        Err(e) => {
+            handle_error(e);
+        }
+    };
+
+    // Mask API token for display before moving
+    let masked_token = format!("{}****", &config.api_token[..config.api_token.len().saturating_sub(4)]);
+
+    // Create sync client
+    let client = crate::sync::TodoistSyncClient::new(config.api_token);
+
+    // Determine output format (command-specific override or global)
+    let format = match &cli.command {
+        Commands::Get(GetCommands::Tasks { format, .. }) => format.clone().unwrap_or(cli.format),
+        Commands::Get(GetCommands::Projects { format, .. }) => format.clone().unwrap_or(cli.format),
+        Commands::Get(GetCommands::Task { format, .. }) => format.clone().unwrap_or(cli.format),
+        _ => cli.format,
+    };
+
+    // Execute command
+    match &cli.command {
+        // Config commands
+        Commands::Config(ConfigCommands::Get) => {
+            println!("API token: {}", masked_token);
+        }
+        Commands::Config(ConfigCommands::Set) => {
+            eprintln!("Error: Use 'init' command to set API token");
+            std::process::exit(1);
+        }
+
+        // Get commands
+        Commands::Get(GetCommands::Tasks { filter, .. }) => {
+            get_tasks(&client, filter.as_deref(), &format).await?;
+        }
+        Commands::Get(GetCommands::Projects { .. }) => {
+            get_projects(&client, &format).await?;
+        }
+        Commands::Get(GetCommands::Task { task_id, .. }) => {
+            get_task(&client, task_id, &format).await?;
+        }
+
+        // Add commands
+        Commands::Add(AddCommands::Task { title, content, description, project_id, due_date, priority, labels, .. }) => {
+            let task_content = title.as_ref().or(content.as_ref())
+                .ok_or_else(|| crate::error::TodoError::InvalidInput("Task title or content required".to_string()))?
+                .clone();
+            
+            let labels_vec: Option<Vec<&str>> = labels.as_ref().map(|l| l.split(',').map(|s| s.trim()).collect());
+            
+            let task_id = client.add_task(
+                &task_content,
+                description.as_deref(),
+                project_id.as_deref(),
+                None,
+                due_date.as_deref(),
+                priority.map(|p| {
+                    if validate_priority(p) { p } else { 1 }
+                }),
+                labels_vec,
+            ).await?;
+
+            println!("Task created with ID: {}", task_id);
+        }
+
+        // Edit commands
+        Commands::Edit(EditCommands::Task { task_id, title, content, project_id: _, due_date, priority, labels }) => {
+            let task_content = title.as_ref().or(content.as_ref()).map(|s| s.as_str());
+            let labels_vec: Option<Vec<&str>> = labels.as_ref().map(|l| l.split(',').map(|s| s.trim()).collect());
+            
+            client.update_task(
+                task_id,
+                task_content,
+                None,
+                priority.map(|p| if validate_priority(p) { p } else { 1 }),
+                due_date.as_deref(),
+                labels_vec,
+            ).await?;
+
+            println!("Task {} updated", task_id);
+        }
+        Commands::Edit(EditCommands::Project { .. }) => {
+            eprintln!("Error: Project editing not fully implemented in sync API");
+            std::process::exit(1);
+        }
+
+        // Complete commands
+        Commands::Complete(CompleteCommands::Task { task_id }) => {
+            client.complete_task(task_id).await?;
+            println!("Task {} completed", task_id);
+        }
+
+        // Reopen commands
+        Commands::Reopen(ReopenCommands::Task { task_id }) => {
+            // Use item_reopen to reopen a task
+            let builder = crate::sync::CommandBuilder::new().item_reopen(task_id);
+            client.execute(builder).await?;
+            println!("Task {} reopened", task_id);
+        }
+
+        // Delete commands
+        Commands::Delete(DeleteCommands::Task { task_id }) => {
+            client.delete_task(task_id).await?;
+            println!("Task {} deleted", task_id);
+        }
+        Commands::Delete(DeleteCommands::Project { project_id }) => {
+            let builder = crate::sync::CommandBuilder::new().project_delete(project_id);
+            client.execute(builder).await?;
+            println!("Project {} deleted", project_id);
+        }
+        Commands::Delete(DeleteCommands::Section { section_id }) => {
+            client.delete_section(section_id).await?;
+            println!("Section {} deleted", section_id);
+        }
+
+        // Init was handled above
+        Commands::Init(_) => unreachable!(),
+    }
+
+    Ok(())
+}
+
+async fn get_tasks(client: &crate::sync::TodoistSyncClient, filter: Option<&str>, format: &crate::formatter::OutputFormat) -> crate::error::Result<()> {
+    // Get all tasks and projects to resolve project names
+    let tasks: Vec<crate::models::Task> = client.get_tasks().await?;
+    let projects: Vec<crate::models::Project> = client.get_projects().await?;
+
+    // Build project name lookup
+    let project_map: std::collections::HashMap<&str, &str> = projects.iter()
+        .map(|p| (p.id.as_str(), p.name.as_str()))
+        .collect();
+
+    // Convert to TaskOutput with project names
+    let task_outputs: Vec<crate::models::TaskOutput> = tasks.into_iter()
+        .map(|t| {
+            let project_name = t.project_id.as_ref()
+                .and_then(|pid| project_map.get(pid.as_str()))
+                .map(|s| s.to_string());
+
+            crate::models::TaskOutput {
+                id: t.id,
+                content: t.content,
+                description: t.description,
+                project_id: t.project_id,
+                project_name,
+                due_date: t.due.and_then(|d| d.date),
+                is_completed: t.is_completed,
+                created_at: t.created_at,
+                order: t.order,
+                priority: t.priority,
+                labels: t.labels,
+            }
+        })
+        .collect();
+
+    // Apply filter if provided
+    let filtered: Vec<crate::models::TaskOutput> = if let Some(f) = filter {
+        // Simple filter implementation - check if content or project contains the filter string
+        task_outputs.into_iter()
+            .filter(|t| {
+                t.content.to_lowercase().contains(&f.to_lowercase()) ||
+                t.project_name.as_ref().map(|p| p.to_lowercase().contains(&f.to_lowercase())).unwrap_or(false)
+            })
+            .collect()
+    } else {
+        task_outputs
+    };
+
+    println!("{}", filtered.format(format));
+    Ok(())
+}
+
+async fn get_projects(client: &crate::sync::TodoistSyncClient, format: &crate::formatter::OutputFormat) -> crate::error::Result<()> {
+    let projects = client.get_projects().await?;
+    println!("{}", projects.format(format));
+    Ok(())
+}
+
+async fn get_task(client: &crate::sync::TodoistSyncClient, task_id: &str, format: &crate::formatter::OutputFormat) -> crate::error::Result<()> {
+    let tasks: Vec<crate::models::Task> = client.get_tasks().await?;
+    let projects: Vec<crate::models::Project> = client.get_projects().await?;
+
+    let project_map: std::collections::HashMap<&str, &str> = projects.iter()
+        .map(|p| (p.id.as_str(), p.name.as_str()))
+        .collect();
+
+    let task = tasks.into_iter()
+        .find(|t| t.id == task_id)
+        .ok_or_else(|| crate::error::TodoError::InvalidInput(format!("Task {} not found", task_id)))?;
+
+    let project_name = task.project_id.as_ref()
+        .and_then(|pid| project_map.get(pid.as_str()))
+        .map(|s| s.to_string());
+
+    let task_output = crate::models::TaskOutput {
+        id: task.id,
+        content: task.content,
+        description: task.description,
+        project_id: task.project_id,
+        project_name,
+        due_date: task.due.and_then(|d| d.date),
+        is_completed: task.is_completed,
+        created_at: task.created_at,
+        order: task.order,
+        priority: task.priority,
+        labels: task.labels,
+    };
+
+    println!("{}", vec![task_output].format(format));
+    Ok(())
 }
 
 #[cfg(test)]
