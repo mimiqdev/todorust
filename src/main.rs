@@ -387,7 +387,10 @@ mod tests {
             "Updated Task",
         ];
         let cli = Cli::try_parse_from(args).unwrap();
-        if let Commands::Edit(EditCommands::Task { task_id, priority, .. }) = cli.command {
+        if let Commands::Edit(EditCommands::Task {
+            task_id, priority, ..
+        }) = cli.command
+        {
             assert_eq!(task_id, "33344");
             assert_eq!(priority, Some(3));
         } else {
