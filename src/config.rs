@@ -13,6 +13,14 @@ pub struct Config {
 }
 
 pub fn load_config() -> Result<Config> {
+    // First, check for API token in environment variable
+    if let Ok(token) = std::env::var("TODORUST_API_TOKEN") {
+        if !token.is_empty() {
+            return Ok(Config { api_token: token });
+        }
+    }
+
+    // Then, check for config file
     let config_dir = dirs::config_dir()
         .ok_or_else(|| TodoError::Config("Cannot find config directory".to_string()))?
         .join("todoirust");
