@@ -566,4 +566,33 @@ mod tests {
         assert_eq!(response.projects.len(), 1);
         assert_eq!(response.projects[0].name, "Test Project");
     }
+
+    #[tokio::test]
+    async fn test_sync_http_error() {
+        let server = MockServer::start_async().await;
+        
+        // Mock 401 错误响应
+        server.mock(|when, then| {
+            when.method(Method::POST)
+                .path("/api/v1/sync");
+            then.respond_with(|_req: &httpmock::HttpMockRequest| {
+                HttpMockResponse::builder()
+                    .status(401)
+                    .body("Unauthorized")
+                    .build()
+            });
+        });
+        
+        let client = TodoistSyncClient::new_with_url(
+            "bad_token".to_string(),
+            server.url("/api/v1/sync")
+        );
+        
+        let result = client.sync(&["projects"]).await;
+        assert!(result.is_err());
+        
+        if let Err(e) = result {
+            assert!(matches!(e, TodoError::Http(401)));
+        }
+    }
 }
