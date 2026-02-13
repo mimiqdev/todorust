@@ -309,55 +309,87 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
 
         // Add commands
-        Commands::Add(AddCommands::Task { title, content, description, project_id, due_date, priority, labels, .. }) => {
-            let task_content = title.as_ref().or(content.as_ref())
-                .ok_or_else(|| crate::error::TodoError::InvalidInput("Task title or content required".to_string()))?
+        Commands::Add(AddCommands::Task {
+            title,
+            content,
+            description,
+            project_id,
+            due_date,
+            priority,
+            labels,
+            ..
+        }) => {
+            let task_content = title
+                .as_ref()
+                .or(content.as_ref())
+                .ok_or_else(|| {
+                    crate::error::TodoError::InvalidInput(
+                        "Task title or content required".to_string(),
+                    )
+                })?
                 .clone();
-            
-            let labels_vec: Option<Vec<&str>> = labels.as_ref().map(|l| l.split(',').map(|s| s.trim()).collect());
-            
-            let task_id = client.add_task(
-                &task_content,
-                description.as_deref(),
-                project_id.as_deref(),
-                None,
-                due_date.as_deref(),
-                priority.map(|p| {
-                    if validate_priority(p) { p } else { 1 }
-                }),
-                labels_vec,
-            ).await?;
+
+            let labels_vec: Option<Vec<&str>> = labels
+                .as_ref()
+                .map(|l| l.split(',').map(|s| s.trim()).collect());
+
+            let task_id = client
+                .add_task(
+                    &task_content,
+                    description.as_deref(),
+                    project_id.as_deref(),
+                    None,
+                    due_date.as_deref(),
+                    priority.map(|p| if validate_priority(p) { p } else { 1 }),
+                    labels_vec,
+                )
+                .await?;
 
             println!("Task created with ID: {}", task_id);
         }
 
         // Edit commands
-        Commands::Edit(EditCommands::Task { task_id, title, content, project_id, due_date, priority, labels }) => {
+        Commands::Edit(EditCommands::Task {
+            task_id,
+            title,
+            content,
+            project_id,
+            due_date,
+            priority,
+            labels,
+        }) => {
             let task_content = title.as_ref().or(content.as_ref()).map(|s| s.as_str());
-            let labels_vec: Option<Vec<&str>> = labels.as_ref().map(|l| l.split(',').map(|s| s.trim()).collect());
-            
+            let labels_vec: Option<Vec<&str>> = labels
+                .as_ref()
+                .map(|l| l.split(',').map(|s| s.trim()).collect());
+
             // Validate priority and return error if invalid
-            let validated_priority = priority.map(|p| {
+            let validated_priority = priority.inspect(|&p| {
                 if !validate_priority(p) {
-                    eprintln!("Error: Invalid priority {}. Priority must be between 1 and 4.", p);
+                    eprintln!(
+                        "Error: Invalid priority {}. Priority must be between 1 and 4.",
+                        p
+                    );
                     std::process::exit(1);
                 }
-                p
             });
-            
+
             // Update task fields
-            client.update_task(
-                task_id,
-                task_content,
-                None,
-                validated_priority,
-                due_date.as_deref(),
-                labels_vec,
-            ).await?;
+            client
+                .update_task(
+                    task_id,
+                    task_content,
+                    None,
+                    validated_priority,
+                    due_date.as_deref(),
+                    labels_vec,
+                )
+                .await?;
 
             // If project_id is provided, move the task to the new project
             if let Some(ref new_project_id) = project_id {
-                let builder = crate::sync::CommandBuilder::new().item_move(task_id, new_project_id, None);
+                let builder =
+                    crate::sync::CommandBuilder::new().item_move(task_id, new_project_id, None);
                 client.execute(builder).await?;
             }
 
@@ -369,7 +401,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 eprintln!("Error: No fields to update. Provide at least --name.");
                 std::process::exit(1);
             }
-            let builder = crate::sync::CommandBuilder::new().project_update(&project_id, name.as_deref(), None, None);
+            let builder = crate::sync::CommandBuilder::new().project_update(
+                project_id,
+                name.as_deref(),
+                None,
+                None,
+            );
             client.execute(builder).await?;
             println!("Project {} updated", project_id);
         }
@@ -410,20 +447,28 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
-async fn get_tasks(client: &crate::sync::TodoistSyncClient, filter: Option<&str>, format: &crate::formatter::OutputFormat) -> crate::error::Result<()> {
+async fn get_tasks(
+    client: &crate::sync::TodoistSyncClient,
+    filter: Option<&str>,
+    format: &crate::formatter::OutputFormat,
+) -> crate::error::Result<()> {
     // Get all tasks and projects to resolve project names
     let tasks: Vec<crate::models::Task> = client.get_tasks().await?;
     let projects: Vec<crate::models::Project> = client.get_projects().await?;
 
     // Build project name lookup
-    let project_map: std::collections::HashMap<&str, &str> = projects.iter()
+    let project_map: std::collections::HashMap<&str, &str> = projects
+        .iter()
         .map(|p| (p.id.as_str(), p.name.as_str()))
         .collect();
 
     // Convert to TaskOutput with project names
-    let task_outputs: Vec<crate::models::TaskOutput> = tasks.into_iter()
+    let task_outputs: Vec<crate::models::TaskOutput> = tasks
+        .into_iter()
         .map(|t| {
-            let project_name = t.project_id.as_ref()
+            let project_name = t
+                .project_id
+                .as_ref()
                 .and_then(|pid| project_map.get(pid.as_str()))
                 .map(|s| s.to_string());
 
@@ -446,10 +491,14 @@ async fn get_tasks(client: &crate::sync::TodoistSyncClient, filter: Option<&str>
     // Apply filter if provided
     let filtered: Vec<crate::models::TaskOutput> = if let Some(f) = filter {
         // Simple filter implementation - check if content or project contains the filter string
-        task_outputs.into_iter()
+        task_outputs
+            .into_iter()
             .filter(|t| {
-                t.content.to_lowercase().contains(&f.to_lowercase()) ||
-                t.project_name.as_ref().map(|p| p.to_lowercase().contains(&f.to_lowercase())).unwrap_or(false)
+                t.content.to_lowercase().contains(&f.to_lowercase())
+                    || t.project_name
+                        .as_ref()
+                        .map(|p| p.to_lowercase().contains(&f.to_lowercase()))
+                        .unwrap_or(false)
             })
             .collect()
     } else {
@@ -460,25 +509,35 @@ async fn get_tasks(client: &crate::sync::TodoistSyncClient, filter: Option<&str>
     Ok(())
 }
 
-async fn get_projects(client: &crate::sync::TodoistSyncClient, format: &crate::formatter::OutputFormat) -> crate::error::Result<()> {
+async fn get_projects(
+    client: &crate::sync::TodoistSyncClient,
+    format: &crate::formatter::OutputFormat,
+) -> crate::error::Result<()> {
     let projects = client.get_projects().await?;
     println!("{}", projects.format(format));
     Ok(())
 }
 
-async fn get_task(client: &crate::sync::TodoistSyncClient, task_id: &str, format: &crate::formatter::OutputFormat) -> crate::error::Result<()> {
+async fn get_task(
+    client: &crate::sync::TodoistSyncClient,
+    task_id: &str,
+    format: &crate::formatter::OutputFormat,
+) -> crate::error::Result<()> {
     let tasks: Vec<crate::models::Task> = client.get_tasks().await?;
     let projects: Vec<crate::models::Project> = client.get_projects().await?;
 
-    let project_map: std::collections::HashMap<&str, &str> = projects.iter()
+    let project_map: std::collections::HashMap<&str, &str> = projects
+        .iter()
         .map(|p| (p.id.as_str(), p.name.as_str()))
         .collect();
 
-    let task = tasks.into_iter()
-        .find(|t| t.id == task_id)
-        .ok_or_else(|| crate::error::TodoError::InvalidInput(format!("Task {} not found", task_id)))?;
+    let task = tasks.into_iter().find(|t| t.id == task_id).ok_or_else(|| {
+        crate::error::TodoError::InvalidInput(format!("Task {} not found", task_id))
+    })?;
 
-    let project_name = task.project_id.as_ref()
+    let project_name = task
+        .project_id
+        .as_ref()
         .and_then(|pid| project_map.get(pid.as_str()))
         .map(|s| s.to_string());
 
