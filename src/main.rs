@@ -188,6 +188,22 @@ enum AddCommands {
         #[arg(long, action = clap::ArgAction::SetTrue)]
         favorite: bool,
     },
+    /// Create a new label
+    Label {
+        #[arg(long)]
+        name: String,
+        #[arg(long)]
+        color: Option<String>,
+    },
+    /// Create a new filter
+    Filter {
+        #[arg(long)]
+        name: String,
+        #[arg(long)]
+        query: String,
+        #[arg(long)]
+        color: Option<String>,
+    },
 }
 
 #[derive(Clone, Subcommand)]
@@ -222,6 +238,26 @@ enum EditCommands {
         section_id: String,
         #[arg(long)]
         name: Option<String>,
+    },
+    /// Edit a label
+    Label {
+        #[arg(long)]
+        label_id: String,
+        #[arg(long)]
+        name: Option<String>,
+        #[arg(long)]
+        color: Option<String>,
+    },
+    /// Edit a filter
+    Filter {
+        #[arg(long)]
+        filter_id: String,
+        #[arg(long)]
+        name: Option<String>,
+        #[arg(long)]
+        query: Option<String>,
+        #[arg(long)]
+        color: Option<String>,
     },
 }
 
@@ -462,6 +498,18 @@ async fn main() -> crate::error::Result<()> {
             println!("Project created with ID: {}", project_id);
         }
 
+        // Add label command
+        Commands::Add(AddCommands::Label { name, color }) => {
+            let label_id = client.add_label(name, color.as_deref()).await?;
+            println!("Label created with ID: {}", label_id);
+        }
+
+        // Add filter command
+        Commands::Add(AddCommands::Filter { name, query, color }) => {
+            let filter_id = client.add_filter(name, query, color.as_deref()).await?;
+            println!("Filter created with ID: {}", filter_id);
+        }
+
         // Edit commands
         Commands::Edit(EditCommands::Task {
             task_id,
@@ -532,6 +580,46 @@ async fn main() -> crate::error::Result<()> {
                 .update_section(section_id, name.as_deref().unwrap())
                 .await?;
             println!("Section {} updated", section_id);
+        }
+
+        // Edit label command
+        Commands::Edit(EditCommands::Label {
+            label_id,
+            name,
+            color,
+        }) => {
+            if name.is_none() && color.is_none() {
+                eprintln!("Error: No fields to update. Provide at least --name or --color.");
+                std::process::exit(1);
+            }
+            client
+                .update_label(label_id, name.as_deref(), color.as_deref())
+                .await?;
+            println!("Label {} updated", label_id);
+        }
+
+        // Edit filter command
+        Commands::Edit(EditCommands::Filter {
+            filter_id,
+            name,
+            query,
+            color,
+        }) => {
+            if name.is_none() && query.is_none() && color.is_none() {
+                eprintln!(
+                    "Error: No fields to update. Provide at least --name, --query, or --color."
+                );
+                std::process::exit(1);
+            }
+            client
+                .update_filter(
+                    filter_id,
+                    name.as_deref(),
+                    query.as_deref(),
+                    color.as_deref(),
+                )
+                .await?;
+            println!("Filter {} updated", filter_id);
         }
 
         // Complete commands
@@ -1205,6 +1293,179 @@ mod tests {
             assert_eq!(format, Some(OutputFormat::Json));
         } else {
             panic!("Expected Get Labels command");
+        }
+    }
+
+    // Tests for P2 CLI commands: add label, edit label, add filter, edit filter
+
+    #[test]
+    fn test_cli_add_label() {
+        let args = vec!["todorust", "add", "label", "--name", "urgent"];
+        let cli = Cli::try_parse_from(args).unwrap();
+        if let Commands::Add(AddCommands::Label { name, color }) = cli.command {
+            assert_eq!(name, "urgent");
+            assert_eq!(color, None);
+        } else {
+            panic!("Expected Add Label command");
+        }
+    }
+
+    #[test]
+    fn test_cli_add_label_with_color() {
+        let args = vec![
+            "todorust", "add", "label", "--name", "work", "--color", "red",
+        ];
+        let cli = Cli::try_parse_from(args).unwrap();
+        if let Commands::Add(AddCommands::Label { name, color }) = cli.command {
+            assert_eq!(name, "work");
+            assert_eq!(color, Some("red".to_string()));
+        } else {
+            panic!("Expected Add Label command");
+        }
+    }
+
+    #[test]
+    fn test_cli_edit_label() {
+        let args = vec![
+            "todorust",
+            "edit",
+            "label",
+            "--label-id",
+            "label123",
+            "--name",
+            "updated_label",
+        ];
+        let cli = Cli::try_parse_from(args).unwrap();
+        if let Commands::Edit(EditCommands::Label {
+            label_id,
+            name,
+            color,
+        }) = cli.command
+        {
+            assert_eq!(label_id, "label123");
+            assert_eq!(name, Some("updated_label".to_string()));
+            assert_eq!(color, None);
+        } else {
+            panic!("Expected Edit Label command");
+        }
+    }
+
+    #[test]
+    fn test_cli_edit_label_with_color() {
+        let args = vec![
+            "todorust",
+            "edit",
+            "label",
+            "--label-id",
+            "label456",
+            "--name",
+            "new_name",
+            "--color",
+            "blue",
+        ];
+        let cli = Cli::try_parse_from(args).unwrap();
+        if let Commands::Edit(EditCommands::Label {
+            label_id,
+            name,
+            color,
+        }) = cli.command
+        {
+            assert_eq!(label_id, "label456");
+            assert_eq!(name, Some("new_name".to_string()));
+            assert_eq!(color, Some("blue".to_string()));
+        } else {
+            panic!("Expected Edit Label command");
+        }
+    }
+
+    #[test]
+    fn test_cli_add_filter() {
+        let args = vec![
+            "todorust", "add", "filter", "--name", "Today", "--query", "today",
+        ];
+        let cli = Cli::try_parse_from(args).unwrap();
+        if let Commands::Add(AddCommands::Filter { name, query, color }) = cli.command {
+            assert_eq!(name, "Today");
+            assert_eq!(query, "today");
+            assert_eq!(color, None);
+        } else {
+            panic!("Expected Add Filter command");
+        }
+    }
+
+    #[test]
+    fn test_cli_add_filter_with_color() {
+        let args = vec![
+            "todorust", "add", "filter", "--name", "Overdue", "--query", "overdue", "--color",
+            "green",
+        ];
+        let cli = Cli::try_parse_from(args).unwrap();
+        if let Commands::Add(AddCommands::Filter { name, query, color }) = cli.command {
+            assert_eq!(name, "Overdue");
+            assert_eq!(query, "overdue");
+            assert_eq!(color, Some("green".to_string()));
+        } else {
+            panic!("Expected Add Filter command");
+        }
+    }
+
+    #[test]
+    fn test_cli_edit_filter() {
+        let args = vec![
+            "todorust",
+            "edit",
+            "filter",
+            "--filter-id",
+            "filter123",
+            "--query",
+            "p1",
+        ];
+        let cli = Cli::try_parse_from(args).unwrap();
+        if let Commands::Edit(EditCommands::Filter {
+            filter_id,
+            name,
+            query,
+            color,
+        }) = cli.command
+        {
+            assert_eq!(filter_id, "filter123");
+            assert_eq!(name, None);
+            assert_eq!(query, Some("p1".to_string()));
+            assert_eq!(color, None);
+        } else {
+            panic!("Expected Edit Filter command");
+        }
+    }
+
+    #[test]
+    fn test_cli_edit_filter_with_all_fields() {
+        let args = vec![
+            "todorust",
+            "edit",
+            "filter",
+            "--filter-id",
+            "filter456",
+            "--name",
+            "Updated Filter",
+            "--query",
+            "today | overdue",
+            "--color",
+            "purple",
+        ];
+        let cli = Cli::try_parse_from(args).unwrap();
+        if let Commands::Edit(EditCommands::Filter {
+            filter_id,
+            name,
+            query,
+            color,
+        }) = cli.command
+        {
+            assert_eq!(filter_id, "filter456");
+            assert_eq!(name, Some("Updated Filter".to_string()));
+            assert_eq!(query, Some("today | overdue".to_string()));
+            assert_eq!(color, Some("purple".to_string()));
+        } else {
+            panic!("Expected Edit Filter command");
         }
     }
 }
