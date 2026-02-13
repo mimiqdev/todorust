@@ -355,6 +355,19 @@ impl TodoistSyncClient {
         Ok(())
     }
 
+    /// 重新排序分区 (使用 Sync API)
+    pub async fn reorder_sections(&self, sections: &[(&str, i64)]) -> Result<(), TodoError> {
+        let section_args: Vec<super::commands::SectionOrderArgs> = sections
+            .iter()
+            .map(|(id, order)| super::commands::SectionOrderArgs::new(id.to_string(), *order))
+            .collect();
+
+        let builder = CommandBuilder::new().section_reorder(&section_args);
+
+        self.execute(builder).await?;
+        Ok(())
+    }
+
     /// 添加标签 (使用 Sync API)
     pub async fn add_label(&self, name: &str, color: Option<&str>) -> Result<String, TodoError> {
         let args = super::commands::LabelAddArgs::new(name.to_string())

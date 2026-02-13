@@ -12,7 +12,7 @@
  */
 
 use crate::models::{Filter, Project, TaskOutput};
-use crate::sync::SyncSection;
+use crate::sync::{SyncFilter, SyncLabel, SyncSection};
 use clap::ValueEnum;
 
 #[derive(Clone, Debug, PartialEq, ValueEnum)]
@@ -211,7 +211,10 @@ fn format_sections_structured(sections: &[SyncSection]) -> String {
     let mut grouped: HashMap<&str, Vec<&SyncSection>> = HashMap::new();
 
     for section in sections {
-        grouped.entry(section.project_id.as_str()).or_default().push(section);
+        grouped
+            .entry(section.project_id.as_str())
+            .or_default()
+            .push(section);
     }
 
     let mut projects: Vec<_> = grouped.into_iter().collect();
@@ -226,6 +229,84 @@ fn format_sections_structured(sections: &[SyncSection]) -> String {
                 .collect::<Vec<_>>()
                 .join("\n");
             format!("## Project: {}\n\n{}", project_id, sections_str)
+        })
+        .collect::<Vec<_>>()
+        .join("\n\n")
+}
+
+impl Formattable for Vec<SyncFilter> {
+    fn format(&self, format: &OutputFormat) -> String {
+        match format {
+            OutputFormat::Json => format_json_sync_filters(self),
+            OutputFormat::Checklist => format_sync_filters_checklist(self),
+            OutputFormat::Structured => format_sync_filters_structured(self),
+        }
+    }
+}
+
+fn format_json_sync_filters(filters: &[SyncFilter]) -> String {
+    serde_json::to_string_pretty(filters).unwrap_or_default()
+}
+
+fn format_sync_filters_checklist(filters: &[SyncFilter]) -> String {
+    filters
+        .iter()
+        .map(|filter| format!("- [ ] {} ({})", filter.name, filter.query))
+        .collect::<Vec<_>>()
+        .join("\n")
+}
+
+fn format_sync_filters_structured(filters: &[SyncFilter]) -> String {
+    filters
+        .iter()
+        .map(|filter| {
+            format!(
+                "### {}\n\n**Filter:** `{}`\n**ID:** {}\n",
+                filter.name, filter.query, filter.id
+            )
+        })
+        .collect::<Vec<_>>()
+        .join("\n\n")
+}
+
+impl Formattable for Vec<SyncLabel> {
+    fn format(&self, format: &OutputFormat) -> String {
+        match format {
+            OutputFormat::Json => format_json_sync_labels(self),
+            OutputFormat::Checklist => format_sync_labels_checklist(self),
+            OutputFormat::Structured => format_sync_labels_structured(self),
+        }
+    }
+}
+
+fn format_json_sync_labels(labels: &[SyncLabel]) -> String {
+    serde_json::to_string_pretty(labels).unwrap_or_default()
+}
+
+fn format_sync_labels_checklist(labels: &[SyncLabel]) -> String {
+    labels
+        .iter()
+        .map(|label| {
+            let fav = if label.is_favorite { "⭐ " } else { "" };
+            format!("- [ ] {}{} (Color: {})", fav, label.name, label.color)
+        })
+        .collect::<Vec<_>>()
+        .join("\n")
+}
+
+fn format_sync_labels_structured(labels: &[SyncLabel]) -> String {
+    labels
+        .iter()
+        .map(|label| {
+            let fav = if label.is_favorite {
+                "**Favorite:** Yes\n"
+            } else {
+                ""
+            };
+            format!(
+                "### {}\n\n**Color:** {}\n**ID:** {}\n{}",
+                label.name, label.color, label.id, fav
+            )
         })
         .collect::<Vec<_>>()
         .join("\n\n")

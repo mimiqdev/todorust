@@ -103,7 +103,7 @@ pub struct SyncSection {
 }
 
 /// Sync 标签
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct SyncLabel {
     pub id: String,
     pub name: String,
@@ -113,7 +113,7 @@ pub struct SyncLabel {
 }
 
 /// Sync 过滤器
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct SyncFilter {
     pub id: String,
     pub name: String,

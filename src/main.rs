@@ -91,6 +91,10 @@ enum Commands {
     /// Move resources
     #[command(subcommand)]
     Move(MoveCommands),
+
+    /// Reorder resources
+    #[command(subcommand)]
+    Reorder(ReorderCommands),
 }
 
 #[derive(Parser)]
@@ -135,6 +139,16 @@ enum GetCommands {
         #[arg(long, short)]
         format: Option<OutputFormat>,
     },
+    /// Get all filters
+    Filters {
+        #[arg(long, short)]
+        format: Option<OutputFormat>,
+    },
+    /// Get all labels
+    Labels {
+        #[arg(long, short)]
+        format: Option<OutputFormat>,
+    },
 }
 
 #[derive(Clone, Subcommand)]
@@ -165,6 +179,15 @@ enum AddCommands {
         #[arg(long)]
         project_id: String,
     },
+    /// Create a new project
+    Project {
+        #[arg(long)]
+        name: String,
+        #[arg(long)]
+        color: Option<String>,
+        #[arg(long, action = clap::ArgAction::SetTrue)]
+        favorite: bool,
+    },
 }
 
 #[derive(Clone, Subcommand)]
@@ -190,6 +213,13 @@ enum EditCommands {
     Project {
         #[arg(long)]
         project_id: String,
+        #[arg(long)]
+        name: Option<String>,
+    },
+    /// Edit a section
+    Section {
+        #[arg(long)]
+        section_id: String,
         #[arg(long)]
         name: Option<String>,
     },
@@ -243,6 +273,17 @@ enum MoveCommands {
         project_id: String,
         #[arg(long)]
         section_id: Option<String>,
+    },
+}
+
+/// Reorder commands - for reordering sections
+#[derive(Clone, Subcommand)]
+enum ReorderCommands {
+    /// Reorder sections within a project
+    Sections {
+        /// Section IDs in desired order (comma-separated)
+        #[arg(long)]
+        section_ids: String,
     },
 }
 
@@ -342,6 +383,12 @@ async fn main() -> crate::error::Result<()> {
         Commands::Get(GetCommands::Sections { project_id, .. }) => {
             get_sections(&client, project_id.as_deref(), &format).await?;
         }
+        Commands::Get(GetCommands::Filters { .. }) => {
+            get_filters(&client, &format).await?;
+        }
+        Commands::Get(GetCommands::Labels { .. }) => {
+            get_labels(&client, &format).await?;
+        }
 
         // Add commands
         Commands::Add(AddCommands::Task {
@@ -400,6 +447,19 @@ async fn main() -> crate::error::Result<()> {
         Commands::Add(AddCommands::Section { name, project_id }) => {
             let section_id = client.add_section(name, project_id).await?;
             println!("Section created with ID: {}", section_id);
+        }
+
+        // Add project command
+        Commands::Add(AddCommands::Project {
+            name,
+            color,
+            favorite,
+        }) => {
+            let fav = *favorite;
+            let project_id = client
+                .add_project(name, color.as_deref(), Some(fav))
+                .await?;
+            println!("Project created with ID: {}", project_id);
         }
 
         // Edit commands
@@ -463,6 +523,16 @@ async fn main() -> crate::error::Result<()> {
             client.execute(builder).await?;
             println!("Project {} updated", project_id);
         }
+        Commands::Edit(EditCommands::Section { section_id, name }) => {
+            if name.is_none() {
+                eprintln!("Error: No fields to update. Provide at least --name.");
+                std::process::exit(1);
+            }
+            client
+                .update_section(section_id, name.as_deref().unwrap())
+                .await?;
+            println!("Section {} updated", section_id);
+        }
 
         // Complete commands
         Commands::Complete(CompleteCommands::Task { task_id }) => {
@@ -500,8 +570,8 @@ async fn main() -> crate::error::Result<()> {
             section_id,
         }) => {
             let builder = crate::sync::CommandBuilder::new().item_move(
-                &task_id,
-                &project_id,
+                task_id,
+                project_id,
                 section_id.as_deref(),
             );
             client.execute(builder).await?;
@@ -509,6 +579,18 @@ async fn main() -> crate::error::Result<()> {
             if let Some(sid) = section_id {
                 println!("Task {} moved to section {}", task_id, sid);
             }
+        }
+
+        // Reorder commands
+        Commands::Reorder(ReorderCommands::Sections { section_ids }) => {
+            let sections: Vec<&str> = section_ids.split(',').map(|s| s.trim()).collect();
+            let sections_with_order: Vec<(&str, i64)> = sections
+                .iter()
+                .enumerate()
+                .map(|(i, id)| (*id, i as i64))
+                .collect();
+            client.reorder_sections(&sections_with_order).await?;
+            println!("Sections reordered: {}", section_ids);
         }
 
         // Init was handled above
@@ -602,6 +684,24 @@ async fn get_sections(
     }
 
     println!("{}", sections.format(format));
+    Ok(())
+}
+
+async fn get_filters(
+    client: &crate::sync::TodoistSyncClient,
+    format: &crate::formatter::OutputFormat,
+) -> crate::error::Result<()> {
+    let filters = client.get_filters().await?;
+    println!("{}", filters.format(format));
+    Ok(())
+}
+
+async fn get_labels(
+    client: &crate::sync::TodoistSyncClient,
+    format: &crate::formatter::OutputFormat,
+) -> crate::error::Result<()> {
+    let labels = client.get_labels().await?;
+    println!("{}", labels.format(format));
     Ok(())
 }
 
@@ -875,19 +975,16 @@ mod tests {
         let cli = Cli::try_parse_from(args).unwrap();
         assert!(matches!(
             cli.command,
-            Commands::Get(GetCommands::Sections { project_id: None, .. })
+            Commands::Get(GetCommands::Sections {
+                project_id: None,
+                ..
+            })
         ));
     }
 
     #[test]
     fn test_cli_get_sections_with_project_id() {
-        let args = vec![
-            "todorust",
-            "get",
-            "sections",
-            "--project-id",
-            "proj123",
-        ];
+        let args = vec!["todorust", "get", "sections", "--project-id", "proj123"];
         let cli = Cli::try_parse_from(args).unwrap();
         if let Commands::Get(GetCommands::Sections { project_id, .. }) = cli.command {
             assert_eq!(project_id, Some("proj123".to_string()));
@@ -972,17 +1069,142 @@ mod tests {
 
     #[test]
     fn test_cli_get_sections_format_option() {
-        let args = vec![
-            "todorust",
-            "get",
-            "sections",
-            "--format",
-            "checklist",
-        ];
+        let args = vec!["todorust", "get", "sections", "--format", "checklist"];
         let cli = Cli::try_parse_from(args).unwrap();
         assert!(matches!(
             cli.command,
             Commands::Get(GetCommands::Sections { .. })
         ));
+    }
+
+    // Tests for P1 CLI commands: edit section, add project, reorder sections, get filters, get labels
+
+    #[test]
+    fn test_cli_get_filters() {
+        let args = vec!["todorust", "get", "filters"];
+        let cli = Cli::try_parse_from(args).unwrap();
+        assert!(matches!(
+            cli.command,
+            Commands::Get(GetCommands::Filters { .. })
+        ));
+    }
+
+    #[test]
+    fn test_cli_get_labels() {
+        let args = vec!["todorust", "get", "labels"];
+        let cli = Cli::try_parse_from(args).unwrap();
+        assert!(matches!(
+            cli.command,
+            Commands::Get(GetCommands::Labels { .. })
+        ));
+    }
+
+    #[test]
+    fn test_cli_add_project() {
+        let args = vec!["todorust", "add", "project", "--name", "New Project"];
+        let cli = Cli::try_parse_from(args).unwrap();
+        if let Commands::Add(AddCommands::Project { name, .. }) = cli.command {
+            assert_eq!(name, "New Project");
+        } else {
+            panic!("Expected Add Project command");
+        }
+    }
+
+    #[test]
+    fn test_cli_add_project_with_color() {
+        let args = vec![
+            "todorust",
+            "add",
+            "project",
+            "--name",
+            "My Project",
+            "--color",
+            "blue",
+        ];
+        let cli = Cli::try_parse_from(args).unwrap();
+        if let Commands::Add(AddCommands::Project { name, color, .. }) = cli.command {
+            assert_eq!(name, "My Project");
+            assert_eq!(color, Some("blue".to_string()));
+        } else {
+            panic!("Expected Add Project command");
+        }
+    }
+
+    #[test]
+    fn test_cli_add_project_with_favorite() {
+        let args = vec![
+            "todorust",
+            "add",
+            "project",
+            "--name",
+            "Favorite Project",
+            "--favorite",
+        ];
+        let cli = Cli::try_parse_from(args).unwrap();
+        if let Commands::Add(AddCommands::Project { name, favorite, .. }) = cli.command {
+            assert_eq!(name, "Favorite Project");
+            assert!(favorite);
+        } else {
+            panic!("Expected Add Project command");
+        }
+    }
+
+    #[test]
+    fn test_cli_edit_section() {
+        let args = vec![
+            "todorust",
+            "edit",
+            "section",
+            "--section-id",
+            "sec123",
+            "--name",
+            "Updated Section",
+        ];
+        let cli = Cli::try_parse_from(args).unwrap();
+        if let Commands::Edit(EditCommands::Section { section_id, name }) = cli.command {
+            assert_eq!(section_id, "sec123");
+            assert_eq!(name, Some("Updated Section".to_string()));
+        } else {
+            panic!("Expected Edit Section command");
+        }
+    }
+
+    #[test]
+    fn test_cli_reorder_sections() {
+        let args = vec![
+            "todorust",
+            "reorder",
+            "sections",
+            "--section-ids",
+            "sec1,sec2,sec3",
+        ];
+        let cli = Cli::try_parse_from(args).unwrap();
+        if let Commands::Reorder(ReorderCommands::Sections { section_ids }) = cli.command {
+            assert_eq!(section_ids, "sec1,sec2,sec3");
+        } else {
+            panic!("Expected Reorder Sections command");
+        }
+    }
+
+    #[test]
+    fn test_cli_get_filters_with_format() {
+        let args = vec!["todorust", "get", "filters", "--format", "checklist"];
+        let cli = Cli::try_parse_from(args).unwrap();
+        if let Commands::Get(GetCommands::Filters { format }) = cli.command {
+            assert_eq!(format, Some(OutputFormat::Checklist));
+        } else {
+            panic!("Expected Get Filters command");
+        }
+    }
+
+    #[test]
+    fn test_cli_get_labels_with_format() {
+        let args = vec!["todorust", "get", "labels", "--format", "json"];
+        let cli = Cli::try_parse_from(args).unwrap();
+        if let Commands::Get(GetCommands::Labels { format }) = cli.command {
+            assert_eq!(format, Some(OutputFormat::Json));
+        } else {
+            panic!("Expected Get Labels command");
+        }
     }
 }
