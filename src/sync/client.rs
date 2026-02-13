@@ -743,4 +743,176 @@ mod tests {
         assert_eq!(projects.len(), 2);
         assert_eq!(projects[0].name, "Project A");
     }
+
+    // ==================== CRUD Tests for 80% Coverage ====================
+    
+    #[tokio::test]
+    async fn test_get_tasks() {
+        let server = MockServer::start_async().await;
+        let mock_response = serde_json::json!({
+            "projects": [],
+            "items": [
+                {"id": "1", "content": "Task 1", "description": "", "project_id": "p1", "is_completed": false, "created_at": "2024-01-01T00:00:00Z", "updated_at": "2024-01-01T00:00:00Z", "priority": 4, "order": 1, "labels": []}
+            ],
+            "sections": [],
+            "labels": [],
+            "filters": [],
+            "sync_token": "token"
+        });
+        let mock_clone = mock_response.clone();
+        server.mock(|when, then| {
+            when.method(Method::POST).path("/api/v1/sync");
+            then.respond_with(move |_req| {
+                HttpMockResponse::builder().status(200).body(mock_clone.to_string()).build()
+            });
+        });
+        let client = TodoistSyncClient::new_with_url("test".to_string(), server.url("/api/v1/sync"));
+        let tasks = client.get_tasks().await.unwrap();
+        assert_eq!(tasks.len(), 1);
+    }
+
+    #[tokio::test]
+    async fn test_add_task() {
+        let server = MockServer::start_async().await;
+        let mock_response = serde_json::json!({
+            "sync_token": "token",
+            "temp_id_mapping": {"temp_1": "real_1"},
+            "sync_status": {"temp_1": "ok"}
+        });
+        let mock_clone = mock_response.clone();
+        server.mock(|when, then| {
+            when.method(Method::POST).path("/api/v1/sync");
+            then.respond_with(move |_req| {
+                HttpMockResponse::builder().status(200).body(mock_clone.to_string()).build()
+            });
+        });
+        let client = TodoistSyncClient::new_with_url("test".to_string(), server.url("/api/v1/sync"));
+        let id = client.add_task("New task", None, None, None, None, None, None).await.unwrap();
+        assert_eq!(id, "real_1");
+    }
+
+    #[tokio::test]
+    async fn test_delete_task() {
+        let server = MockServer::start_async().await;
+        let mock_response = serde_json::json!({
+            "sync_token": "token",
+            "temp_id_mapping": {},
+            "sync_status": {"temp_del": "ok"}
+        });
+        let mock_clone = mock_response.clone();
+        server.mock(|when, then| {
+            when.method(Method::POST).path("/api/v1/sync");
+            then.respond_with(move |_req| {
+                HttpMockResponse::builder().status(200).body(mock_clone.to_string()).build()
+            });
+        });
+        let client = TodoistSyncClient::new_with_url("test".to_string(), server.url("/api/v1/sync"));
+        client.delete_task("task_123").await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn test_complete_task() {
+        let server = MockServer::start_async().await;
+        let mock_response = serde_json::json!({
+            "sync_token": "token",
+            "temp_id_mapping": {},
+            "sync_status": {"temp_comp": "ok"}
+        });
+        let mock_clone = mock_response.clone();
+        server.mock(|when, then| {
+            when.method(Method::POST).path("/api/v1/sync");
+            then.respond_with(move |_req| {
+                HttpMockResponse::builder().status(200).body(mock_clone.to_string()).build()
+            });
+        });
+        let client = TodoistSyncClient::new_with_url("test".to_string(), server.url("/api/v1/sync"));
+        client.complete_task("task_123").await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn test_add_section() {
+        let server = MockServer::start_async().await;
+        let mock_response = serde_json::json!({
+            "sync_token": "token",
+            "temp_id_mapping": {"temp_s": "sec_1"},
+            "sync_status": {"temp_s": "ok"}
+        });
+        let mock_clone = mock_response.clone();
+        server.mock(|when, then| {
+            when.method(Method::POST).path("/api/v1/sync");
+            then.respond_with(move |_req| {
+                HttpMockResponse::builder().status(200).body(mock_clone.to_string()).build()
+            });
+        });
+        let client = TodoistSyncClient::new_with_url("test".to_string(), server.url("/api/v1/sync"));
+        let id = client.add_section("New Section", "proj_1").await.unwrap();
+        assert_eq!(id, "sec_1");
+    }
+
+    #[tokio::test]
+    async fn test_update_task() {
+        let server = MockServer::start_async().await;
+        let mock_response = serde_json::json!({
+            "sync_token": "token",
+            "temp_id_mapping": {},
+            "sync_status": {"temp_upd": "ok"}
+        });
+        let mock_clone = mock_response.clone();
+        server.mock(|when, then| {
+            when.method(Method::POST).path("/api/v1/sync");
+            then.respond_with(move |_req| {
+                HttpMockResponse::builder().status(200).body(mock_clone.to_string()).build()
+            });
+        });
+        let client = TodoistSyncClient::new_with_url("test".to_string(), server.url("/api/v1/sync"));
+        client.update_task("task_1", Some("new content"), None, None, None, None).await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn test_execute_commands_with_status() {
+        let server = MockServer::start_async().await;
+        let mock_response = serde_json::json!({
+            "sync_token": "token",
+            "temp_id_mapping": {},
+            "sync_status": {"uuid1": "ok"}
+        });
+        let mock_clone = mock_response.clone();
+        server.mock(|when, then| {
+            when.method(Method::POST).path("/api/v1/sync");
+            then.respond_with(move |_req| {
+                HttpMockResponse::builder().status(200).body(mock_clone.to_string()).build()
+            });
+        });
+        let client = TodoistSyncClient::new_with_url("test".to_string(), server.url("/api/v1/sync"));
+        let commands = vec![Command {
+            type_: "item_add".to_string(),
+            uuid: "uuid1".to_string(),
+            args: serde_json::json!({"content": "test"}),
+            temp_id: None,
+        }];
+        client.execute_commands_with_status(&commands).await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn test_get_sections() {
+        let server = MockServer::start_async().await;
+        let mock_response = serde_json::json!({
+            "projects": [],
+            "items": [],
+            "sections": [{"id": "1", "name": "Section 1", "project_id": "p1", "order": 1, "created_at": "2024-01-01T00:00:00Z"}],
+            "labels": [],
+            "filters": [],
+            "sync_token": "token"
+        });
+        let mock_clone = mock_response.clone();
+        server.mock(|when, then| {
+            when.method(Method::POST).path("/api/v1/sync");
+            then.respond_with(move |_req| {
+                HttpMockResponse::builder().status(200).body(mock_clone.to_string()).build()
+            });
+        });
+        let client = TodoistSyncClient::new_with_url("test".to_string(), server.url("/api/v1/sync"));
+        let sections = client.get_sections().await.unwrap();
+        assert_eq!(sections.len(), 1);
+    }
 }
