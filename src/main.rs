@@ -268,8 +268,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
     };
 
-    // Mask API token for display before moving
-    let masked_token = format!("{}****", &config.api_token[..config.api_token.len().saturating_sub(4)]);
+    // Mask API token for display: show "****" when token < 4
+    let masked_token = if config.api_token.len() < 4 {
+        "****".to_string()
+    } else {
+        format!("{}****", &config.api_token[..config.api_token.len() - 4])
+    };
 
     // Create sync client
     let client = crate::sync::TodoistSyncClient::new(config.api_token);
@@ -328,24 +332,46 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
 
         // Edit commands
-        Commands::Edit(EditCommands::Task { task_id, title, content, project_id: _, due_date, priority, labels }) => {
+        Commands::Edit(EditCommands::Task { task_id, title, content, project_id, due_date, priority, labels }) => {
             let task_content = title.as_ref().or(content.as_ref()).map(|s| s.as_str());
             let labels_vec: Option<Vec<&str>> = labels.as_ref().map(|l| l.split(',').map(|s| s.trim()).collect());
             
+            // Validate priority and return error if invalid
+            let validated_priority = priority.map(|p| {
+                if !validate_priority(p) {
+                    eprintln!("Error: Invalid priority {}. Priority must be between 1 and 4.", p);
+                    std::process::exit(1);
+                }
+                p
+            });
+            
+            // Update task fields
             client.update_task(
                 task_id,
                 task_content,
                 None,
-                priority.map(|p| if validate_priority(p) { p } else { 1 }),
+                validated_priority,
                 due_date.as_deref(),
                 labels_vec,
             ).await?;
 
+            // If project_id is provided, move the task to the new project
+            if let Some(ref new_project_id) = project_id {
+                let builder = crate::sync::CommandBuilder::new().item_move(task_id, new_project_id, None);
+                client.execute(builder).await?;
+            }
+
             println!("Task {} updated", task_id);
         }
-        Commands::Edit(EditCommands::Project { .. }) => {
-            eprintln!("Error: Project editing not fully implemented in sync API");
-            std::process::exit(1);
+        Commands::Edit(EditCommands::Project { project_id, name }) => {
+            // Implement project update using project_update command
+            if name.is_none() {
+                eprintln!("Error: No fields to update. Provide at least --name.");
+                std::process::exit(1);
+            }
+            let builder = crate::sync::CommandBuilder::new().project_update(&project_id, name.as_deref(), None, None);
+            client.execute(builder).await?;
+            println!("Project {} updated", project_id);
         }
 
         // Complete commands
