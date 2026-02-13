@@ -52,9 +52,14 @@ impl TodoistSyncClient {
     ///
     /// A new `TodoistSyncClient` instance
     pub fn new(token: String) -> Self {
+        Self::new_with_url(token, "https://api.todoist.com/api/v1/sync".to_string())
+    }
+
+    #[cfg(test)]
+    pub fn new_with_url(token: String, sync_url: String) -> Self {
         Self {
             token,
-            sync_url: "https://api.todoist.com/api/v1/sync".to_string(),
+            sync_url,
             sync_token: RefCell::new(None),
             http: HttpClient::new(),
         }
