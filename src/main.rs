@@ -664,6 +664,27 @@ mod tests {
     }
 
     #[test]
+    fn test_edit_project() {
+        // Use Command::Edit(EditCommands::Project{...}) to parse and print
+        let args = vec![
+            "todorust",
+            "edit",
+            "project",
+            "--project-id",
+            "test_project_123",
+            "--name",
+            "My Test Project",
+        ];
+        let cli = Cli::try_parse_from(args).unwrap();
+        if let Commands::Edit(EditCommands::Project { project_id, name }) = cli.command {
+            println!("project_id: {}", project_id);
+            println!("name: {:?}", name);
+        } else {
+            panic!("Expected Edit Project command");
+        }
+    }
+
+    #[test]
     fn test_cli_add_task_full() {
         let args = vec![
             "todorust",
