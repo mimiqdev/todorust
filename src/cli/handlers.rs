@@ -1,12 +1,14 @@
 use crate::error::Result;
 use crate::formatter::{Formattable, OutputFormat};
-use crate::sync::TodoistSyncClient;
+use crate::sync::{Command, TodoistSyncClient};
 use std::collections::HashMap;
 
 pub async fn get_tasks(
     client: &TodoistSyncClient,
     filter: Option<&str>,
     format: &OutputFormat,
+    fields: Option<&str>,
+    limit: Option<usize>,
 ) -> Result<()> {
     // Get all tasks and projects to resolve project names
     let tasks = client.get_tasks().await?;
@@ -45,15 +47,48 @@ pub async fn get_tasks(
         .collect();
 
     // Apply filter if provided
-    let filtered: Vec<crate::models::TaskOutput> = if let Some(f) = filter {
-        // Simple filter implementation - check if content or project contains the filter string
+    let mut filtered: Vec<crate::models::TaskOutput> = if let Some(f) = filter {
+        let f_lower = f.to_lowercase();
+
+        // Check for specific patterns like "p:1" or "priority:1"
+        let priority_filter = if f_lower.starts_with("p:") {
+            f_lower
+                .strip_prefix("p:")
+                .and_then(|s| s.parse::<u8>().ok())
+        } else if f_lower.starts_with("priority:") {
+            f_lower
+                .strip_prefix("priority:")
+                .and_then(|s| s.parse::<u8>().ok())
+        } else {
+            None
+        };
+
+        let status_filter = match f_lower.as_str() {
+            "is:completed" | "completed" => Some(true),
+            "is:active" | "active" | "incomplete" => Some(false),
+            _ => None,
+        };
+
         task_outputs
             .into_iter()
             .filter(|t| {
-                t.content.to_lowercase().contains(&f.to_lowercase())
+                if let Some(p) = priority_filter {
+                    if t.priority == p {
+                        return true;
+                    }
+                }
+
+                if let Some(completed) = status_filter {
+                    if t.is_completed == completed {
+                        return true;
+                    }
+                }
+
+                // Content or project name match
+                t.content.to_lowercase().contains(&f_lower)
                     || t.project_name
                         .as_ref()
-                        .map(|p| p.to_lowercase().contains(&f.to_lowercase()))
+                        .map(|p| p.to_lowercase().contains(&f_lower))
                         .unwrap_or(false)
             })
             .collect()
@@ -61,16 +96,30 @@ pub async fn get_tasks(
         task_outputs
     };
 
-    println!("{}", filtered.format(format));
+    // Apply limit if provided
+    if let Some(l) = limit {
+        filtered.truncate(l);
+    }
+
+    if format == &OutputFormat::Json && fields.is_some() {
+        println!("{}", filtered.format_filtered(fields));
+    } else {
+        println!("{}", filtered.format(format));
+    }
     Ok(())
 }
 
 pub async fn get_projects(
     client: &TodoistSyncClient,
     format: &OutputFormat,
+    fields: Option<&str>,
 ) -> Result<()> {
     let projects = client.get_projects().await?;
-    println!("{}", projects.format(format));
+    if format == &OutputFormat::Json && fields.is_some() {
+        println!("{}", projects.format_filtered(fields));
+    } else {
+        println!("{}", projects.format(format));
+    }
     Ok(())
 }
 
@@ -78,6 +127,7 @@ pub async fn get_sections(
     client: &TodoistSyncClient,
     project_id: Option<&str>,
     format: &OutputFormat,
+    fields: Option<&str>,
 ) -> Result<()> {
     let mut sections = client.get_sections().await?;
 
@@ -86,25 +136,39 @@ pub async fn get_sections(
         sections.retain(|s| s.project_id == pid);
     }
 
-    println!("{}", sections.format(format));
+    if format == &OutputFormat::Json && fields.is_some() {
+        println!("{}", sections.format_filtered(fields));
+    } else {
+        println!("{}", sections.format(format));
+    }
     Ok(())
 }
 
 pub async fn get_filters(
     client: &TodoistSyncClient,
     format: &OutputFormat,
+    fields: Option<&str>,
 ) -> Result<()> {
     let filters = client.get_filters().await?;
-    println!("{}", filters.format(format));
+    if format == &OutputFormat::Json && fields.is_some() {
+        println!("{}", filters.format_filtered(fields));
+    } else {
+        println!("{}", filters.format(format));
+    }
     Ok(())
 }
 
 pub async fn get_labels(
     client: &TodoistSyncClient,
     format: &OutputFormat,
+    fields: Option<&str>,
 ) -> Result<()> {
     let labels = client.get_labels().await?;
-    println!("{}", labels.format(format));
+    if format == &OutputFormat::Json && fields.is_some() {
+        println!("{}", labels.format_filtered(fields));
+    } else {
+        println!("{}", labels.format(format));
+    }
     Ok(())
 }
 
@@ -112,6 +176,7 @@ pub async fn get_task(
     client: &TodoistSyncClient,
     task_id: &str,
     format: &OutputFormat,
+    fields: Option<&str>,
 ) -> Result<()> {
     let tasks = client.get_tasks().await?;
     let projects = client.get_projects().await?;
@@ -145,10 +210,16 @@ pub async fn get_task(
         labels: task.labels,
     };
 
-    println!("{}", vec![task_output].format(format));
+    let result = vec![task_output];
+    if format == &OutputFormat::Json && fields.is_some() {
+        println!("{}", result.format_filtered(fields));
+    } else {
+        println!("{}", result.format(format));
+    }
     Ok(())
 }
 
+#[allow(clippy::too_many_arguments)]
 pub async fn add_task(
     client: &TodoistSyncClient,
     title: Option<String>,
@@ -167,7 +238,7 @@ pub async fn add_task(
         })?
         .clone();
 
-    // Validate priority - return error if invalid
+    // Validate priority
     let validated_priority = if let Some(p) = priority {
         if !validate_priority(p) {
             return Err(crate::error::TodoError::InvalidInput(format!(
@@ -196,10 +267,87 @@ pub async fn add_task(
         )
         .await?;
 
-    println!("Task created with ID: {}", task_id);
+    let response = serde_json::json!({
+        "status": "success",
+        "type": "task",
+        "id": task_id,
+        "content": task_content
+    });
+    println!("{}", serde_json::to_string_pretty(&response).unwrap());
     Ok(())
 }
 
+pub async fn add_section(
+    client: &TodoistSyncClient,
+    name: String,
+    project_id: String,
+) -> Result<()> {
+    let section_id = client.add_section(&name, &project_id).await?;
+    let response = serde_json::json!({
+        "status": "success",
+        "type": "section",
+        "id": section_id,
+        "name": name,
+        "project_id": project_id
+    });
+    println!("{}", serde_json::to_string_pretty(&response).unwrap());
+    Ok(())
+}
+
+pub async fn add_project(
+    client: &TodoistSyncClient,
+    name: String,
+    color: Option<String>,
+    favorite: bool,
+) -> Result<()> {
+    let project_id = client
+        .add_project(&name, color.as_deref(), Some(favorite))
+        .await?;
+    let response = serde_json::json!({
+        "status": "success",
+        "type": "project",
+        "id": project_id,
+        "name": name
+    });
+    println!("{}", serde_json::to_string_pretty(&response).unwrap());
+    Ok(())
+}
+
+pub async fn add_label(
+    client: &TodoistSyncClient,
+    name: String,
+    color: Option<String>,
+) -> Result<()> {
+    let label_id = client.add_label(&name, color.as_deref()).await?;
+    let response = serde_json::json!({
+        "status": "success",
+        "type": "label",
+        "id": label_id,
+        "name": name
+    });
+    println!("{}", serde_json::to_string_pretty(&response).unwrap());
+    Ok(())
+}
+
+pub async fn add_filter(
+    client: &TodoistSyncClient,
+    name: String,
+    query: String,
+    color: Option<String>,
+) -> Result<()> {
+    let filter_id = client.add_filter(&name, &query, color.as_deref()).await?;
+    let response = serde_json::json!({
+        "status": "success",
+        "type": "filter",
+        "id": filter_id,
+        "name": name,
+        "query": query
+    });
+    println!("{}", serde_json::to_string_pretty(&response).unwrap());
+    Ok(())
+}
+
+#[allow(clippy::too_many_arguments)]
 pub async fn edit_task(
     client: &TodoistSyncClient,
     task_id: String,
@@ -215,7 +363,7 @@ pub async fn edit_task(
         .as_ref()
         .map(|l| l.split(',').map(|s| s.trim()).collect());
 
-    // Validate priority - return error if invalid
+    // Validate priority
     if let Some(p) = priority {
         if !validate_priority(p) {
             return Err(crate::error::TodoError::InvalidInput(format!(
@@ -243,51 +391,13 @@ pub async fn edit_task(
         )
         .await?;
 
-    println!("Task {} updated", task_id);
-    Ok(())
-}
-
-pub async fn add_section(
-    client: &TodoistSyncClient,
-    name: String,
-    project_id: String,
-) -> Result<()> {
-    let section_id = client.add_section(&name, &project_id).await?;
-    println!("Section created with ID: {}", section_id);
-    Ok(())
-}
-
-pub async fn add_project(
-    client: &TodoistSyncClient,
-    name: String,
-    color: Option<String>,
-    favorite: bool,
-) -> Result<()> {
-    let project_id = client
-        .add_project(&name, color.as_deref(), Some(favorite))
-        .await?;
-    println!("Project created with ID: {}", project_id);
-    Ok(())
-}
-
-pub async fn add_label(
-    client: &TodoistSyncClient,
-    name: String,
-    color: Option<String>,
-) -> Result<()> {
-    let label_id = client.add_label(&name, color.as_deref()).await?;
-    println!("Label created with ID: {}", label_id);
-    Ok(())
-}
-
-pub async fn add_filter(
-    client: &TodoistSyncClient,
-    name: String,
-    query: String,
-    color: Option<String>,
-) -> Result<()> {
-    let filter_id = client.add_filter(&name, &query, color.as_deref()).await?;
-    println!("Filter created with ID: {}", filter_id);
+    let response = serde_json::json!({
+        "status": "success",
+        "action": "edit",
+        "type": "task",
+        "id": task_id
+    });
+    println!("{}", serde_json::to_string_pretty(&response).unwrap());
     Ok(())
 }
 
@@ -301,14 +411,16 @@ pub async fn edit_project(
             "No fields to update. Provide at least --name.".to_string(),
         ));
     }
-    let builder = crate::sync::CommandBuilder::new().project_update(
-        &project_id,
-        name.as_deref(),
-        None,
-        None,
-    );
+    let builder =
+        crate::sync::CommandBuilder::new().project_update(&project_id, name.as_deref(), None, None);
     client.execute(builder).await?;
-    println!("Project {} updated", project_id);
+    let response = serde_json::json!({
+        "status": "success",
+        "action": "edit",
+        "type": "project",
+        "id": project_id
+    });
+    println!("{}", serde_json::to_string_pretty(&response).unwrap());
     Ok(())
 }
 
@@ -323,7 +435,13 @@ pub async fn edit_section(
         )
     })?;
     client.update_section(&section_id, &new_name).await?;
-    println!("Section {} updated", section_id);
+    let response = serde_json::json!({
+        "status": "success",
+        "action": "edit",
+        "type": "section",
+        "id": section_id
+    });
+    println!("{}", serde_json::to_string_pretty(&response).unwrap());
     Ok(())
 }
 
@@ -341,7 +459,13 @@ pub async fn edit_label(
     client
         .update_label(&label_id, name.as_deref(), color.as_deref())
         .await?;
-    println!("Label {} updated", label_id);
+    let response = serde_json::json!({
+        "status": "success",
+        "action": "edit",
+        "type": "label",
+        "id": label_id
+    });
+    println!("{}", serde_json::to_string_pretty(&response).unwrap());
     Ok(())
 }
 
@@ -365,39 +489,73 @@ pub async fn edit_filter(
             color.as_deref(),
         )
         .await?;
-    println!("Filter {} updated", filter_id);
+    let response = serde_json::json!({
+        "status": "success",
+        "action": "edit",
+        "type": "filter",
+        "id": filter_id
+    });
+    println!("{}", serde_json::to_string_pretty(&response).unwrap());
     Ok(())
 }
 
 pub async fn complete_task(client: &TodoistSyncClient, task_id: String) -> Result<()> {
     client.complete_task(&task_id).await?;
-    println!("Task {} completed", task_id);
+    let response = serde_json::json!({
+        "status": "success",
+        "action": "complete",
+        "id": task_id
+    });
+    println!("{}", serde_json::to_string_pretty(&response).unwrap());
     Ok(())
 }
 
 pub async fn reopen_task(client: &TodoistSyncClient, task_id: String) -> Result<()> {
     let builder = crate::sync::CommandBuilder::new().item_reopen(&task_id);
     client.execute(builder).await?;
-    println!("Task {} reopened", task_id);
+    let response = serde_json::json!({
+        "status": "success",
+        "action": "reopen",
+        "id": task_id
+    });
+    println!("{}", serde_json::to_string_pretty(&response).unwrap());
     Ok(())
 }
 
 pub async fn delete_task(client: &TodoistSyncClient, task_id: String) -> Result<()> {
     client.delete_task(&task_id).await?;
-    println!("Task {} deleted", task_id);
+    let response = serde_json::json!({
+        "status": "success",
+        "action": "delete",
+        "type": "task",
+        "id": task_id
+    });
+    println!("{}", serde_json::to_string_pretty(&response).unwrap());
     Ok(())
 }
 
 pub async fn delete_project(client: &TodoistSyncClient, project_id: String) -> Result<()> {
     let builder = crate::sync::CommandBuilder::new().project_delete(&project_id);
     client.execute(builder).await?;
-    println!("Project {} deleted", project_id);
+    let response = serde_json::json!({
+        "status": "success",
+        "action": "delete",
+        "type": "project",
+        "id": project_id
+    });
+    println!("{}", serde_json::to_string_pretty(&response).unwrap());
     Ok(())
 }
 
 pub async fn delete_section(client: &TodoistSyncClient, section_id: String) -> Result<()> {
     client.delete_section(&section_id).await?;
-    println!("Section {} deleted", section_id);
+    let response = serde_json::json!({
+        "status": "success",
+        "action": "delete",
+        "type": "section",
+        "id": section_id
+    });
+    println!("{}", serde_json::to_string_pretty(&response).unwrap());
     Ok(())
 }
 
@@ -410,10 +568,14 @@ pub async fn move_task(
     let builder =
         crate::sync::CommandBuilder::new().item_move(&task_id, &project_id, section_id.as_deref());
     client.execute(builder).await?;
-    println!("Task {} moved to project {}", task_id, project_id);
-    if let Some(sid) = section_id {
-        println!("Task {} moved to section {}", task_id, sid);
-    }
+    let response = serde_json::json!({
+        "status": "success",
+        "action": "move",
+        "id": task_id,
+        "project_id": project_id,
+        "section_id": section_id
+    });
+    println!("{}", serde_json::to_string_pretty(&response).unwrap());
     Ok(())
 }
 
@@ -425,7 +587,24 @@ pub async fn reorder_sections(client: &TodoistSyncClient, section_ids: String) -
         .map(|(i, id)| (*id, i as i64))
         .collect();
     client.reorder_sections(&sections_with_order).await?;
-    println!("Sections reordered: {}", section_ids);
+    let response = serde_json::json!({
+        "status": "success",
+        "action": "reorder",
+        "type": "sections",
+        "section_ids": sections
+    });
+    println!("{}", serde_json::to_string_pretty(&response).unwrap());
+    Ok(())
+}
+
+pub async fn batch(client: &TodoistSyncClient, commands_json: String) -> Result<()> {
+    let commands: Vec<Command> = serde_json::from_str(&commands_json)
+        .map_err(|e| crate::error::TodoError::InvalidInput(format!("Invalid batch JSON: {}", e)))?;
+
+    let response = client.execute_commands_with_status(&commands).await?;
+
+    // For batch operations, we always output JSON to show the status and mappings
+    println!("{}", serde_json::to_string_pretty(&response).unwrap());
     Ok(())
 }
 

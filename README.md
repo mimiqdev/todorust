@@ -7,11 +7,11 @@ A Rust CLI tool for Todoist Sync API integration with simplified JSON output for
 
 ## Features
 
-- Get tasks with full Todoist filter syntax support
-- Get projects and custom filters
-- Create, complete, and reopen tasks
-- Clean JSON output optimized for parsing
-- Simple configuration management
+- **Batch Operations**: Execute multiple commands in a single Sync request.
+- **AI-Optimized Output**: JSON responses for all actions, with field selection (`--fields`) to save tokens.
+- **Advanced Filtering**: Support for priority and status keywords in task queries.
+- **Smart Formatting**: Markdown checklists and structured project views.
+- **Shell Completion**: Native support for bash, zsh, and fish.
 
 ## Installation
 

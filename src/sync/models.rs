@@ -9,7 +9,7 @@ use std::collections::HashMap;
 use crate::models::{Due, Project, Task};
 
 /// Sync API 读取响应
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct SyncReadResponse {
     pub sync_token: String,
     #[serde(default)]
@@ -27,7 +27,7 @@ pub struct SyncReadResponse {
 }
 
 /// Sync API 写入响应
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct SyncWriteResponse {
     pub sync_token: String,
     #[serde(default)]
@@ -37,7 +37,7 @@ pub struct SyncWriteResponse {
 }
 
 /// Sync 项目
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct SyncProject {
     pub id: String,
     pub name: String,
@@ -56,7 +56,7 @@ pub struct SyncProject {
 }
 
 /// Sync 任务 (item)
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct SyncTask {
     pub id: String,
     #[serde(default)]
@@ -121,7 +121,7 @@ pub struct SyncFilter {
 }
 
 /// Sync 截止日期
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct SyncDue {
     pub date: Option<String>,
     #[serde(default)]

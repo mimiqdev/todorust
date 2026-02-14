@@ -120,10 +120,10 @@ impl TodoistSyncClient {
 
         let parsed: SyncReadResponse = serde_json::from_str(&body)
             .map_err(|e| TodoError::Api(format!("Failed to parse sync response: {}", e)))?;
-        
+
         // Update sync token
         self.set_sync_token(parsed.sync_token.clone());
-        
+
         Ok(parsed)
     }
 
@@ -163,7 +163,7 @@ impl TodoistSyncClient {
 
         let parsed: SyncWriteResponse = serde_json::from_str(&body)
             .map_err(|e| TodoError::Api(format!("Failed to parse command response: {}", e)))?;
-        
+
         // Update sync token
         self.set_sync_token(parsed.sync_token.clone());
 

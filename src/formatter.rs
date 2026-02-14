@@ -14,6 +14,7 @@
 use crate::models::{Filter, Project, TaskOutput};
 use crate::sync::{SyncFilter, SyncLabel, SyncSection};
 use clap::ValueEnum;
+use serde_json::Value;
 
 #[derive(Clone, Debug, PartialEq, ValueEnum)]
 pub enum OutputFormat {
@@ -24,6 +25,38 @@ pub enum OutputFormat {
 
 pub trait Formattable {
     fn format(&self, format: &OutputFormat) -> String;
+    /// Formats the object as JSON, optionally filtering specific fields.
+    fn format_filtered(&self, fields: Option<&str>) -> String;
+}
+
+/// Filters a JSON value to include only specific fields.
+pub fn filter_json(value: Value, fields: &str) -> Value {
+    let field_list: Vec<&str> = fields.split(',').map(|s| s.trim()).collect();
+
+    match value {
+        Value::Array(items) => {
+            let filtered_items: Vec<Value> = items
+                .into_iter()
+                .map(|item| filter_object(item, &field_list))
+                .collect();
+            Value::Array(filtered_items)
+        }
+        _ => filter_object(value, &field_list),
+    }
+}
+
+fn filter_object(value: Value, fields: &[&str]) -> Value {
+    if let Value::Object(map) = value {
+        let mut filtered_map = serde_json::Map::new();
+        for &field in fields {
+            if let Some(val) = map.get(field) {
+                filtered_map.insert(field.to_string(), val.clone());
+            }
+        }
+        Value::Object(filtered_map)
+    } else {
+        value
+    }
 }
 
 impl Formattable for Vec<TaskOutput> {
@@ -32,6 +65,15 @@ impl Formattable for Vec<TaskOutput> {
             OutputFormat::Json => format_json(self),
             OutputFormat::Checklist => format_checklist(self),
             OutputFormat::Structured => format_structured(self),
+        }
+    }
+
+    fn format_filtered(&self, fields: Option<&str>) -> String {
+        let json = serde_json::to_value(self).unwrap_or(Value::Array(vec![]));
+        if let Some(f) = fields {
+            serde_json::to_string_pretty(&filter_json(json, f)).unwrap_or_default()
+        } else {
+            serde_json::to_string_pretty(&json).unwrap_or_default()
         }
     }
 }
@@ -100,6 +142,15 @@ impl Formattable for Vec<Project> {
             OutputFormat::Structured => format_projects_structured(self),
         }
     }
+
+    fn format_filtered(&self, fields: Option<&str>) -> String {
+        let json = serde_json::to_value(self).unwrap_or(Value::Array(vec![]));
+        if let Some(f) = fields {
+            serde_json::to_string_pretty(&filter_json(json, f)).unwrap_or_default()
+        } else {
+            serde_json::to_string_pretty(&json).unwrap_or_default()
+        }
+    }
 }
 
 fn format_json_projects(projects: &[Project]) -> String {
@@ -156,6 +207,15 @@ impl Formattable for Vec<Filter> {
             OutputFormat::Structured => format_filters_structured(self),
         }
     }
+
+    fn format_filtered(&self, fields: Option<&str>) -> String {
+        let json = serde_json::to_value(self).unwrap_or(Value::Array(vec![]));
+        if let Some(f) = fields {
+            serde_json::to_string_pretty(&filter_json(json, f)).unwrap_or_default()
+        } else {
+            serde_json::to_string_pretty(&json).unwrap_or_default()
+        }
+    }
 }
 
 fn format_json_filters(filters: &[Filter]) -> String {
@@ -189,6 +249,15 @@ impl Formattable for Vec<SyncSection> {
             OutputFormat::Json => format_json_sections(self),
             OutputFormat::Checklist => format_sections_checklist(self),
             OutputFormat::Structured => format_sections_structured(self),
+        }
+    }
+
+    fn format_filtered(&self, fields: Option<&str>) -> String {
+        let json = serde_json::to_value(self).unwrap_or(Value::Array(vec![]));
+        if let Some(f) = fields {
+            serde_json::to_string_pretty(&filter_json(json, f)).unwrap_or_default()
+        } else {
+            serde_json::to_string_pretty(&json).unwrap_or_default()
         }
     }
 }
@@ -242,6 +311,15 @@ impl Formattable for Vec<SyncFilter> {
             OutputFormat::Structured => format_sync_filters_structured(self),
         }
     }
+
+    fn format_filtered(&self, fields: Option<&str>) -> String {
+        let json = serde_json::to_value(self).unwrap_or(Value::Array(vec![]));
+        if let Some(f) = fields {
+            serde_json::to_string_pretty(&filter_json(json, f)).unwrap_or_default()
+        } else {
+            serde_json::to_string_pretty(&json).unwrap_or_default()
+        }
+    }
 }
 
 fn format_json_sync_filters(filters: &[SyncFilter]) -> String {
@@ -275,6 +353,15 @@ impl Formattable for Vec<SyncLabel> {
             OutputFormat::Json => format_json_sync_labels(self),
             OutputFormat::Checklist => format_sync_labels_checklist(self),
             OutputFormat::Structured => format_sync_labels_structured(self),
+        }
+    }
+
+    fn format_filtered(&self, fields: Option<&str>) -> String {
+        let json = serde_json::to_value(self).unwrap_or(Value::Array(vec![]));
+        if let Some(f) = fields {
+            serde_json::to_string_pretty(&filter_json(json, f)).unwrap_or_default()
+        } else {
+            serde_json::to_string_pretty(&json).unwrap_or_default()
         }
     }
 }
@@ -599,5 +686,35 @@ mod tests {
         let sections: Vec<SyncSection> = vec![];
         let output = sections.format(&OutputFormat::Checklist);
         assert_eq!(output, "");
+    }
+
+    #[test]
+    fn test_filter_json_object() {
+        let json = serde_json::json!({
+            "id": "1",
+            "content": "test",
+            "extra": "secret"
+        });
+        let filtered = filter_json(json, "id,content");
+        assert_eq!(filtered, serde_json::json!({"id": "1", "content": "test"}));
+    }
+
+    #[test]
+    fn test_filter_json_array() {
+        let json = serde_json::json!([
+            {"id": "1", "content": "a", "extra": "x"},
+            {"id": "2", "content": "b", "extra": "y"}
+        ]);
+        let filtered = filter_json(json, "id");
+        assert_eq!(filtered, serde_json::json!([{"id": "1"}, {"id": "2"}]));
+    }
+
+    #[test]
+    fn test_format_filtered_tasks() {
+        let tasks = mock_tasks();
+        let output = tasks.format_filtered(Some("id,content"));
+        assert!(output.contains("\"id\": \"1\""));
+        assert!(output.contains("\"content\": \"Task 1\""));
+        assert!(!output.contains("\"priority\""));
     }
 }

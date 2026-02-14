@@ -55,19 +55,19 @@ mod tests {
     #[test]
     fn test_todo_error_config_message() {
         let error = TodoError::Config("test error message".to_string());
-        assert_eq!(format!("{}", error), "Config error: test error message");
+        assert_eq!(format!("{}", error), "Configuration error: test error message");
     }
 
     #[test]
     fn test_todo_error_api_message() {
         let error = TodoError::Api("api error".to_string());
-        assert_eq!(format!("{}", error), "API error: api error");
+        assert_eq!(format!("{}", error), "Todoist API error: api error");
     }
 
     #[test]
     fn test_todo_error_http_message() {
         let error = TodoError::Http(404);
-        assert_eq!(format!("{}", error), "HTTP error 404");
+        assert_eq!(format!("{}", error), "Todoist API returned HTTP 404");
     }
 
     #[test]
@@ -81,7 +81,7 @@ mod tests {
         let error = TodoError::ConfigNotFound;
         assert_eq!(
             format!("{}", error),
-            "Config error: Configuration not found. Run `todorust init --api-token YOUR_TOKEN` to configure."
+            "Configuration not found. Please run `todorust init --api-token YOUR_TOKEN` to set up your Todoist API token."
         );
     }
 
@@ -90,7 +90,7 @@ mod tests {
         let error = TodoError::Serialize("serialization failed".to_string());
         assert_eq!(
             format!("{}", error),
-            "Serialize error: serialization failed"
+            "Serialization failed: serialization failed"
         );
     }
 

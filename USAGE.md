@@ -4,14 +4,17 @@
 
 ### Get Resources
 ```bash
+# Basic retrieval
 todorust get tasks --filter "today"
 todorust get projects
-todorust get filters
-todorust get labels
-todorust get sections --project-id "123"
+
+# AI Optimizations
+todorust get tasks --limit 10
+todorust get tasks --fields "id,content"
 ```
 
 ### Add Resources
+Returns JSON response with the new item's details.
 ```bash
 todorust add task --title "Buy milk"
 todorust add project --name "Side Project"
@@ -27,35 +30,30 @@ todorust move task --task-id "123" --project-id "456"
 todorust delete task --task-id "123"
 ```
 
+### Batch Operations
+Execute multiple Sync API commands in one request.
+```bash
+todorust batch '[
+  {"type": "item_add", "args": {"content": "Task 1"}},
+  {"type": "item_complete", "args": {"id": "123"}}
+]'
+```
+
+### Shell Completion
+```bash
+# For zsh
+todorust completion zsh > ~/.zfunc/_todorust
+# For bash
+todorust completion bash > /etc/bash_completion.d/todorust
+```
+
 ## Filter Syntax Examples
 
-### By Project
-```
-project:Work
-project:Personal
-```
+The `--filter` flag supports keyword matching and some key-value patterns:
 
-### By Date
-```
-due today
-due tomorrow
-due within "7 days of today"
-completed within "7 days of today"
-```
-
-### By Priority
-```
-priority:4  # High
-priority:3  # Normal
-priority:2  # Low
-priority:1  # None
-```
-
-### Combined Filters
-```
-project:Work & priority:4
-project:Work & due within "7 days of today" & !completed
-```
+- **Keywords**: `Work`, `shopping` (matches content or project)
+- **Priority**: `p:4`, `priority:1` (1-4)
+- **Status**: `is:completed`, `active`, `incomplete`
 
 ## JSON Output Format
 
@@ -73,26 +71,5 @@ project:Work & due within "7 days of today" & !completed
   "order": 1,
   "priority": 4,
   "labels": ["urgent"]
-}
-```
-
-### Project
-```json
-{
-  "id": "456",
-  "name": "Work",
-  "color": "blue",
-  "is_shared": false,
-  "is_favorite": true,
-  "url": "https://todoist.com/showProject/456"
-}
-```
-
-### Filter
-```json
-{
-  "id": "789",
-  "name": "This Week",
-  "query": "due within \"7 days of today\""
 }
 ```

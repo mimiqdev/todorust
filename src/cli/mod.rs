@@ -1,5 +1,5 @@
-use clap::{Parser, Subcommand};
 use crate::formatter::OutputFormat;
+use clap::{Parser, Subcommand};
 
 #[derive(Parser)]
 #[command(name = "todorust")]
@@ -53,6 +53,12 @@ pub enum Commands {
     #[command(subcommand)]
     Reorder(ReorderCommands),
 
+    /// Execute multiple commands in a single batch request
+    Batch {
+        /// JSON array of commands
+        commands: String,
+    },
+
     /// Generate shell completion scripts
     Completion {
         /// Shell to generate completion for
@@ -83,11 +89,20 @@ pub enum GetCommands {
         filter: Option<String>,
         #[arg(long, short)]
         format: Option<OutputFormat>,
+        /// Specific fields to include in JSON output (e.g., "id,content")
+        #[arg(long)]
+        fields: Option<String>,
+        /// Limit the number of tasks returned
+        #[arg(long)]
+        limit: Option<usize>,
     },
     /// Get all projects
     Projects {
         #[arg(long, short)]
         format: Option<OutputFormat>,
+        /// Specific fields to include in JSON output
+        #[arg(long)]
+        fields: Option<String>,
     },
     /// Get a specific task
     Task {
@@ -95,6 +110,9 @@ pub enum GetCommands {
         task_id: String,
         #[arg(long, short)]
         format: Option<OutputFormat>,
+        /// Specific fields to include in JSON output
+        #[arg(long)]
+        fields: Option<String>,
     },
     /// Get all sections (optionally filtered by project)
     Sections {
@@ -102,16 +120,25 @@ pub enum GetCommands {
         project_id: Option<String>,
         #[arg(long, short)]
         format: Option<OutputFormat>,
+        /// Specific fields to include in JSON output
+        #[arg(long)]
+        fields: Option<String>,
     },
     /// Get all filters
     Filters {
         #[arg(long, short)]
         format: Option<OutputFormat>,
+        /// Specific fields to include in JSON output
+        #[arg(long)]
+        fields: Option<String>,
     },
     /// Get all labels
     Labels {
         #[arg(long, short)]
         format: Option<OutputFormat>,
+        /// Specific fields to include in JSON output
+        #[arg(long)]
+        fields: Option<String>,
     },
 }
 

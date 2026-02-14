@@ -22,20 +22,33 @@
  * ```
  */
 
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 use crate::error::TodoError;
 
 /// Sync API 命令结构
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct Command {
     #[serde(rename = "type")]
     pub type_: String,
+    #[serde(default = "Command::generate_uuid")]
     pub uuid: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub temp_id: Option<String>,
     pub args: serde_json::Value,
+}
+
+impl Command {
+    /// 生成命令 UUID
+    pub fn generate_uuid() -> String {
+        Uuid::new_v4().to_string()
+    }
+
+    /// 生成临时 ID
+    pub fn generate_temp_id() -> String {
+        Uuid::new_v4().to_string()
+    }
 }
 
 /// Command 构建器
@@ -50,22 +63,12 @@ impl CommandBuilder {
         }
     }
 
-    /// 生成命令 UUID
-    fn generate_uuid() -> String {
-        Uuid::new_v4().to_string()
-    }
-
-    /// 生成临时 ID
-    fn generate_temp_id() -> String {
-        Uuid::new_v4().to_string()
-    }
-
     /// 添加 item_add 命令 - 创建任务
     pub fn item_add(mut self, args: ItemAddArgs) -> Self {
         self.commands.push(Command {
             type_: "item_add".to_string(),
-            uuid: Self::generate_uuid(),
-            temp_id: Some(Self::generate_temp_id()),
+            uuid: Command::generate_uuid(),
+            temp_id: Some(Command::generate_temp_id()),
             args: serde_json::to_value(args)
                 .map_err(|e| TodoError::Serialize(e.to_string()))
                 .unwrap(),
@@ -77,7 +80,7 @@ impl CommandBuilder {
     pub fn item_close(mut self, id: &str) -> Self {
         self.commands.push(Command {
             type_: "item_close".to_string(),
-            uuid: Self::generate_uuid(),
+            uuid: Command::generate_uuid(),
             temp_id: None,
             args: serde_json::json!({ "id": id }),
         });
@@ -88,7 +91,7 @@ impl CommandBuilder {
     pub fn item_reopen(mut self, id: &str) -> Self {
         self.commands.push(Command {
             type_: "item_reopen".to_string(),
-            uuid: Self::generate_uuid(),
+            uuid: Command::generate_uuid(),
             temp_id: None,
             args: serde_json::json!({ "id": id }),
         });
@@ -99,7 +102,7 @@ impl CommandBuilder {
     pub fn item_delete(mut self, id: &str) -> Self {
         self.commands.push(Command {
             type_: "item_delete".to_string(),
-            uuid: Self::generate_uuid(),
+            uuid: Command::generate_uuid(),
             temp_id: None,
             args: serde_json::json!({ "id": id }),
         });
@@ -117,7 +120,7 @@ impl CommandBuilder {
         }
         self.commands.push(Command {
             type_: "item_move".to_string(),
-            uuid: Self::generate_uuid(),
+            uuid: Command::generate_uuid(),
             temp_id: None,
             args,
         });
@@ -128,8 +131,8 @@ impl CommandBuilder {
     pub fn project_add(mut self, args: ProjectAddArgs) -> Self {
         self.commands.push(Command {
             type_: "project_add".to_string(),
-            uuid: Self::generate_uuid(),
-            temp_id: Some(Self::generate_temp_id()),
+            uuid: Command::generate_uuid(),
+            temp_id: Some(Command::generate_temp_id()),
             args: serde_json::to_value(args)
                 .map_err(|e| TodoError::Serialize(e.to_string()))
                 .unwrap(),
@@ -157,7 +160,7 @@ impl CommandBuilder {
         }
         self.commands.push(Command {
             type_: "project_update".to_string(),
-            uuid: Self::generate_uuid(),
+            uuid: Command::generate_uuid(),
             temp_id: None,
             args,
         });
@@ -168,7 +171,7 @@ impl CommandBuilder {
     pub fn project_delete(mut self, id: &str) -> Self {
         self.commands.push(Command {
             type_: "project_delete".to_string(),
-            uuid: Self::generate_uuid(),
+            uuid: Command::generate_uuid(),
             temp_id: None,
             args: serde_json::json!({ "id": id }),
         });
@@ -179,8 +182,8 @@ impl CommandBuilder {
     pub fn section_add(mut self, args: SectionAddArgs) -> Self {
         self.commands.push(Command {
             type_: "section_add".to_string(),
-            uuid: Self::generate_uuid(),
-            temp_id: Some(Self::generate_temp_id()),
+            uuid: Command::generate_uuid(),
+            temp_id: Some(Command::generate_temp_id()),
             args: serde_json::to_value(args)
                 .map_err(|e| TodoError::Serialize(e.to_string()))
                 .unwrap(),
@@ -192,7 +195,7 @@ impl CommandBuilder {
     pub fn section_update(mut self, id: &str, name: &str) -> Self {
         self.commands.push(Command {
             type_: "section_update".to_string(),
-            uuid: Self::generate_uuid(),
+            uuid: Command::generate_uuid(),
             temp_id: None,
             args: serde_json::json!({ "id": id, "name": name }),
         });
@@ -203,7 +206,7 @@ impl CommandBuilder {
     pub fn section_delete(mut self, id: &str) -> Self {
         self.commands.push(Command {
             type_: "section_delete".to_string(),
-            uuid: Self::generate_uuid(),
+            uuid: Command::generate_uuid(),
             temp_id: None,
             args: serde_json::json!({ "id": id }),
         });
@@ -214,7 +217,7 @@ impl CommandBuilder {
     pub fn section_archive(mut self, id: &str) -> Self {
         self.commands.push(Command {
             type_: "section_archive".to_string(),
-            uuid: Self::generate_uuid(),
+            uuid: Command::generate_uuid(),
             temp_id: None,
             args: serde_json::json!({ "id": id }),
         });
@@ -225,7 +228,7 @@ impl CommandBuilder {
     pub fn section_unarchive(mut self, id: &str) -> Self {
         self.commands.push(Command {
             type_: "section_unarchive".to_string(),
-            uuid: Self::generate_uuid(),
+            uuid: Command::generate_uuid(),
             temp_id: None,
             args: serde_json::json!({ "id": id }),
         });
@@ -236,7 +239,7 @@ impl CommandBuilder {
     pub fn section_move(mut self, id: &str, project_id: &str) -> Self {
         self.commands.push(Command {
             type_: "section_move".to_string(),
-            uuid: Self::generate_uuid(),
+            uuid: Command::generate_uuid(),
             temp_id: None,
             args: serde_json::json!({
                 "id": id,
@@ -250,7 +253,7 @@ impl CommandBuilder {
     pub fn section_reorder(mut self, sections: &[SectionOrderArgs]) -> Self {
         self.commands.push(Command {
             type_: "section_reorder".to_string(),
-            uuid: Self::generate_uuid(),
+            uuid: Command::generate_uuid(),
             temp_id: None,
             args: serde_json::json!({ "sections": sections }),
         });
@@ -261,7 +264,7 @@ impl CommandBuilder {
     pub fn item_complete(mut self, id: &str) -> Self {
         self.commands.push(Command {
             type_: "item_complete".to_string(),
-            uuid: Self::generate_uuid(),
+            uuid: Command::generate_uuid(),
             temp_id: None,
             args: serde_json::json!({ "id": id }),
         });
@@ -272,7 +275,7 @@ impl CommandBuilder {
     pub fn item_update(mut self, args: ItemUpdateArgs) -> Self {
         self.commands.push(Command {
             type_: "item_update".to_string(),
-            uuid: Self::generate_uuid(),
+            uuid: Command::generate_uuid(),
             temp_id: None,
             args: serde_json::to_value(args)
                 .map_err(|e| TodoError::Serialize(e.to_string()))
@@ -285,8 +288,8 @@ impl CommandBuilder {
     pub fn label_add(mut self, args: LabelAddArgs) -> Self {
         self.commands.push(Command {
             type_: "label_add".to_string(),
-            uuid: Self::generate_uuid(),
-            temp_id: Some(Self::generate_temp_id()),
+            uuid: Command::generate_uuid(),
+            temp_id: Some(Command::generate_temp_id()),
             args: serde_json::to_value(args)
                 .map_err(|e| TodoError::Serialize(e.to_string()))
                 .unwrap(),
@@ -305,7 +308,7 @@ impl CommandBuilder {
         }
         self.commands.push(Command {
             type_: "label_update".to_string(),
-            uuid: Self::generate_uuid(),
+            uuid: Command::generate_uuid(),
             temp_id: None,
             args,
         });
@@ -316,7 +319,7 @@ impl CommandBuilder {
     pub fn label_delete(mut self, id: &str) -> Self {
         self.commands.push(Command {
             type_: "label_delete".to_string(),
-            uuid: Self::generate_uuid(),
+            uuid: Command::generate_uuid(),
             temp_id: None,
             args: serde_json::json!({ "id": id }),
         });
@@ -327,7 +330,7 @@ impl CommandBuilder {
     pub fn filter_update_orders(mut self, filters: &[FilterOrderArgs]) -> Self {
         self.commands.push(Command {
             type_: "filter_update_orders".to_string(),
-            uuid: Self::generate_uuid(),
+            uuid: Command::generate_uuid(),
             temp_id: None,
             args: serde_json::json!({ "filters": filters }),
         });
@@ -338,8 +341,8 @@ impl CommandBuilder {
     pub fn filter_add(mut self, args: FilterAddArgs) -> Self {
         self.commands.push(Command {
             type_: "filter_add".to_string(),
-            uuid: Self::generate_uuid(),
-            temp_id: Some(Self::generate_temp_id()),
+            uuid: Command::generate_uuid(),
+            temp_id: Some(Command::generate_temp_id()),
             args: serde_json::to_value(args)
                 .map_err(|e| TodoError::Serialize(e.to_string()))
                 .unwrap(),
@@ -367,7 +370,7 @@ impl CommandBuilder {
         }
         self.commands.push(Command {
             type_: "filter_update".to_string(),
-            uuid: Self::generate_uuid(),
+            uuid: Command::generate_uuid(),
             temp_id: None,
             args,
         });
@@ -378,7 +381,7 @@ impl CommandBuilder {
     pub fn filter_delete(mut self, id: &str) -> Self {
         self.commands.push(Command {
             type_: "filter_delete".to_string(),
-            uuid: Self::generate_uuid(),
+            uuid: Command::generate_uuid(),
             temp_id: None,
             args: serde_json::json!({ "id": id }),
         });
@@ -398,7 +401,7 @@ impl Default for CommandBuilder {
 }
 
 /// item_add 命令参数
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct ItemAddArgs {
     pub content: String,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -460,7 +463,7 @@ impl ItemAddArgs {
 }
 
 /// project_add 命令参数
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct ProjectAddArgs {
     pub name: String,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -490,7 +493,7 @@ impl ProjectAddArgs {
 }
 
 /// section_add 命令参数
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct SectionAddArgs {
     pub name: String,
     pub project_id: String,
@@ -503,7 +506,7 @@ impl SectionAddArgs {
 }
 
 /// item_update 命令参数
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct ItemUpdateArgs {
     pub id: String,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -573,7 +576,7 @@ impl ItemUpdateArgs {
 }
 
 /// label_add 命令参数
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct LabelAddArgs {
     pub name: String,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -592,7 +595,7 @@ impl LabelAddArgs {
 }
 
 /// filter_update_orders 命令参数
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct FilterOrderArgs {
     pub id: String,
     pub order: i64,
@@ -605,7 +608,7 @@ impl FilterOrderArgs {
 }
 
 /// filter_add 命令参数
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct FilterAddArgs {
     pub name: String,
     pub query: String,
@@ -629,7 +632,7 @@ impl FilterAddArgs {
 }
 
 /// section_reorder 命令参数
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct SectionOrderArgs {
     pub id: String,
     pub order: i64,
@@ -1098,5 +1101,30 @@ mod tests {
     fn test_empty_builder_build() {
         let commands = CommandBuilder::new().build();
         assert!(commands.is_empty());
+    }
+
+    #[test]
+    fn test_command_deserialization() {
+        let json = r#"{
+            "type": "item_add",
+            "args": {"content": "New Task"}
+        }"#;
+        let cmd: Command = serde_json::from_str(json).unwrap();
+        assert_eq!(cmd.type_, "item_add");
+        assert_eq!(cmd.args["content"], "New Task");
+        // Check that UUID was generated by default
+        assert!(!cmd.uuid.is_empty());
+    }
+
+    #[test]
+    fn test_batch_deserialization() {
+        let json = r#"[
+            {"type": "item_add", "args": {"content": "Task 1"}},
+            {"type": "item_complete", "args": {"id": "123"}}
+        ]"#;
+        let commands: Vec<Command> = serde_json::from_str(json).unwrap();
+        assert_eq!(commands.len(), 2);
+        assert_eq!(commands[0].type_, "item_add");
+        assert_eq!(commands[1].type_, "item_complete");
     }
 }

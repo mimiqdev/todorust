@@ -23,23 +23,33 @@ Todoist CLI tool with optimized JSON output for AI agents.
 # Get tasks (with optional filter)
 todorust get tasks --filter "today"
 
-# Get tasks in a specific project (filter by project name)
-todorust get tasks --filter "Work"
+# Get tasks with specific fields to save tokens
+todorust get tasks --fields "id,content,priority"
+
+# Limit results
+todorust get tasks --limit 10
 
 # Get all projects
 todorust get projects
 
 # Get all sections (optionally for a project)
 todorust get sections --project-id "12345678"
+```
 
-# Get all filters
-todorust get filters
+### Batch Operations
 
-# Get all labels
-todorust get labels
+Highly efficient for AI agents to perform multiple actions in one sync.
+
+```bash
+todorust batch '[
+  {"type": "item_add", "args": {"content": "Task 1"}},
+  {"type": "item_complete", "args": {"id": "12345"}}
+]'
 ```
 
 ### Create Resources
+
+Returns JSON with the new item ID.
 
 ```bash
 # Basic task
@@ -50,72 +60,51 @@ todorust add task --title "Review PR" --description "Check the sync logic" --pro
 
 # Create a project
 todorust add project --name "Side Project"
-
-# Create a section in a project
-todorust add section --name "Backlog" --project-id "222"
 ```
 
 ### Update/Move Resources
 
 ```bash
-# Edit a task's title or priority
+# Edit a task
 todorust edit task --task-id "123" --title "New Title" --priority 3
 
-# Move a task to a different project/section
+# Move a task
 todorust move task --task-id "123" --project-id "456" --section-id "789"
 
-# Complete a task
+# Complete/Reopen
 todorust complete task --task-id "123"
-
-# Reopen a completed task
 todorust reopen task --task-id "123"
-```
-
-### Delete Resources
-
-```bash
-# Delete a task
-todorust delete task --task-id "123"
-
-# Delete a project
-todorust delete project --project-id "456"
 ```
 
 ## Filter Syntax (for `get tasks --filter`)
 
-The `--filter` argument in `get tasks` currently performs a simple case-insensitive substring match on the task **content** or **project name**.
-
 | Filter Type | Example |
 |-------------|---------|
-| By Content  | `todorust get tasks --filter "milk"` |
-| By Project  | `todorust get tasks --filter "Work"` |
-
-*Note: For complex Todoist filters (e.g., "due today & p1"), you may need to fetch all tasks and filter them yourself or use Todoist's native filter queries if supported by the backend.*
+| Keyword     | `todorust get tasks --filter "milk"` (matches content or project) |
+| Priority    | `todorust get tasks --filter "p:4"` (1-4) |
+| Status      | `todorust get tasks --filter "is:completed"` or `"active"` |
 
 ## Output Formats
 
-- `json`: Full JSON output (default). Best for agents to parse IDs and details.
+- `json`: Full JSON output (default). Mutations also return JSON.
 - `checklist`: Markdown checklist (`- [ ] task (Project)`).
 - `structured`: Markdown grouped by project with headings.
 
 ## Examples for Agents
 
-### 1. Finding a Task ID
-If a user says "Complete my 'Buy milk' task", first search for it:
+### 1. Finding and Completing a Task
 ```bash
-todorust get tasks --filter "Buy milk" --format json
-```
-Then use the `id` from the JSON to complete it:
-```bash
+# 1. Search
+todorust get tasks --filter "Buy milk" --fields "id,content"
+# 2. Complete using ID from JSON
 todorust complete task --task-id "ID_FROM_JSON"
 ```
 
-### 2. Organizing a Project
-To see sections in a project:
+### 2. Multi-action Sync
+If a user wants to move and complete a task:
 ```bash
-todorust get sections --project-id "PROJECT_ID"
-```
-To move a task into a section:
-```bash
-todorust move task --task-id "TASK_ID" --project-id "PROJECT_ID" --section-id "SECTION_ID"
+todorust batch '[
+  {"type": "item_move", "args": {"id": "123", "project_id": "456"}},
+  {"type": "item_complete", "args": {"id": "123"}}
+]'
 ```

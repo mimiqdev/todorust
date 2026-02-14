@@ -13,7 +13,10 @@ pub use formatter::{Formattable, OutputFormat};
 pub use models::Project;
 pub use sync::{SyncFilter, SyncLabel, SyncProject, SyncSection, SyncTask, TodoistSyncClient};
 
-use crate::cli::{handle_error, AddCommands, Cli, Commands, CompleteCommands, ConfigCommands, DeleteCommands, EditCommands, GetCommands, MoveCommands, ReopenCommands, ReorderCommands};
+use crate::cli::{
+    handle_error, AddCommands, Cli, Commands, CompleteCommands, ConfigCommands, DeleteCommands,
+    EditCommands, GetCommands, MoveCommands, ReopenCommands, ReorderCommands,
+};
 use clap::Parser;
 
 #[tokio::main]
@@ -32,15 +35,20 @@ async fn main() -> crate::error::Result<()> {
             t.clone()
         } else {
             println!("No API token provided.");
-            println!("Please get your API token from: https://todoist.com/app/settings/integrations");
+            println!(
+                "Please get your API token from: https://todoist.com/app/settings/integrations"
+            );
             println!("Enter your API token:");
-            let mut input = String::new();
-            std::io::stdin().read_line(&mut input).map_err(|e| crate::error::TodoError::Io(e))?;
-            input.trim().to_string()
+                        let mut input = String::new();
+                        std::io::stdin().read_line(&mut input).map_err(crate::error::TodoError::Io)?;
+                        input.trim().to_string()
+            
         };
 
         if token.is_empty() {
-            handle_error(crate::error::TodoError::InvalidInput("API token cannot be empty".to_string()));
+            handle_error(crate::error::TodoError::InvalidInput(
+                "API token cannot be empty".to_string(),
+            ));
         }
 
         if let Err(e) = crate::config::init_config(&token) {
@@ -89,23 +97,40 @@ async fn main() -> crate::error::Result<()> {
         }
 
         // Get commands
-        Commands::Get(GetCommands::Tasks { filter, .. }) => {
-            cli::handlers::get_tasks(&client, filter.as_deref(), &format).await?;
+        Commands::Get(GetCommands::Tasks {
+            filter,
+            fields,
+            limit,
+            ..
+        }) => {
+            cli::handlers::get_tasks(
+                &client,
+                filter.as_deref(),
+                &format,
+                fields.as_deref(),
+                *limit,
+            )
+            .await?;
         }
-        Commands::Get(GetCommands::Projects { .. }) => {
-            cli::handlers::get_projects(&client, &format).await?;
+        Commands::Get(GetCommands::Projects { fields, .. }) => {
+            cli::handlers::get_projects(&client, &format, fields.as_deref()).await?;
         }
-        Commands::Get(GetCommands::Task { task_id, .. }) => {
-            cli::handlers::get_task(&client, task_id, &format).await?;
+        Commands::Get(GetCommands::Task {
+            task_id, fields, ..
+        }) => {
+            cli::handlers::get_task(&client, task_id, &format, fields.as_deref()).await?;
         }
-        Commands::Get(GetCommands::Sections { project_id, .. }) => {
-            cli::handlers::get_sections(&client, project_id.as_deref(), &format).await?;
+        Commands::Get(GetCommands::Sections {
+            project_id, fields, ..
+        }) => {
+            cli::handlers::get_sections(&client, project_id.as_deref(), &format, fields.as_deref())
+                .await?;
         }
-        Commands::Get(GetCommands::Filters { .. }) => {
-            cli::handlers::get_filters(&client, &format).await?;
+        Commands::Get(GetCommands::Filters { fields, .. }) => {
+            cli::handlers::get_filters(&client, &format, fields.as_deref()).await?;
         }
-        Commands::Get(GetCommands::Labels { .. }) => {
-            cli::handlers::get_labels(&client, &format).await?;
+        Commands::Get(GetCommands::Labels { fields, .. }) => {
+            cli::handlers::get_labels(&client, &format, fields.as_deref()).await?;
         }
 
         // Add commands
@@ -134,7 +159,11 @@ async fn main() -> crate::error::Result<()> {
         Commands::Add(AddCommands::Section { name, project_id }) => {
             cli::handlers::add_section(&client, name.clone(), project_id.clone()).await?;
         }
-        Commands::Add(AddCommands::Project { name, color, favorite }) => {
+        Commands::Add(AddCommands::Project {
+            name,
+            color,
+            favorite,
+        }) => {
             cli::handlers::add_project(&client, name.clone(), color.clone(), *favorite).await?;
         }
         Commands::Add(AddCommands::Label { name, color }) => {
@@ -172,11 +201,28 @@ async fn main() -> crate::error::Result<()> {
         Commands::Edit(EditCommands::Section { section_id, name }) => {
             cli::handlers::edit_section(&client, section_id.clone(), name.clone()).await?;
         }
-        Commands::Edit(EditCommands::Label { label_id, name, color }) => {
-            cli::handlers::edit_label(&client, label_id.clone(), name.clone(), color.clone()).await?;
+        Commands::Edit(EditCommands::Label {
+            label_id,
+            name,
+            color,
+        }) => {
+            cli::handlers::edit_label(&client, label_id.clone(), name.clone(), color.clone())
+                .await?;
         }
-        Commands::Edit(EditCommands::Filter { filter_id, name, query, color }) => {
-            cli::handlers::edit_filter(&client, filter_id.clone(), name.clone(), query.clone(), color.clone()).await?;
+        Commands::Edit(EditCommands::Filter {
+            filter_id,
+            name,
+            query,
+            color,
+        }) => {
+            cli::handlers::edit_filter(
+                &client,
+                filter_id.clone(),
+                name.clone(),
+                query.clone(),
+                color.clone(),
+            )
+            .await?;
         }
 
         // Complete/Reopen
@@ -199,13 +245,28 @@ async fn main() -> crate::error::Result<()> {
         }
 
         // Move commands
-        Commands::Move(MoveCommands::Task { task_id, project_id, section_id }) => {
-            cli::handlers::move_task(&client, task_id.clone(), project_id.clone(), section_id.clone()).await?;
+        Commands::Move(MoveCommands::Task {
+            task_id,
+            project_id,
+            section_id,
+        }) => {
+            cli::handlers::move_task(
+                &client,
+                task_id.clone(),
+                project_id.clone(),
+                section_id.clone(),
+            )
+            .await?;
         }
 
         // Reorder commands
         Commands::Reorder(ReorderCommands::Sections { section_ids }) => {
             cli::handlers::reorder_sections(&client, section_ids.clone()).await?;
+        }
+
+        // Batch command
+        Commands::Batch { commands } => {
+            cli::handlers::batch(&client, commands.clone()).await?;
         }
 
         // Completion command

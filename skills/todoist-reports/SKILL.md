@@ -24,6 +24,16 @@ todorust --version
 todorust get tasks --filter "today" --format checklist
 ```
 
+**Get only task names and IDs (Token efficient):**
+```bash
+todorust get tasks --fields "id,content"
+```
+
+**Limit to most recent 5 tasks:**
+```bash
+todorust get tasks --limit 5
+```
+
 **Get tasks organized by project:**
 ```bash
 todorust get tasks --format structured
