@@ -9,26 +9,29 @@ use thiserror::Error;
 
 #[derive(Error, Debug)]
 pub enum TodoError {
-    #[error("Config error: {0}")]
+    #[error("Configuration error: {0}")]
     Config(String),
 
-    #[error("API request error: {0}")]
+    #[error("API request failed: {0}")]
     Request(#[from] reqwest::Error),
 
-    #[error("API error: {0}")]
+    #[error("Todoist API error: {0}")]
     Api(String),
 
-    #[error("HTTP error {0}")]
+    #[error("Todoist API returned HTTP {0}")]
     Http(u16),
 
     #[error("Invalid input: {0}")]
     InvalidInput(String),
 
-    #[error("Config error: Configuration not found. Run `todorust init --api-token YOUR_TOKEN` to configure.")]
+    #[error("Configuration not found. Please run `todorust init --api-token YOUR_TOKEN` to set up your Todoist API token.")]
     ConfigNotFound,
 
-    #[error("Serialize error: {0}")]
+    #[error("Serialization failed: {0}")]
     Serialize(String),
+
+    #[error("IO error: {0}")]
+    Io(#[from] std::io::Error),
 }
 
 impl From<serde_json::Error> for TodoError {
