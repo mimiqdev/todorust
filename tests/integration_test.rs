@@ -1,7 +1,8 @@
 use std::env;
 
-#[test]
-fn test_end_to_end_workflow() {
+#[tokio::test]
+#[ignore]
+async fn test_end_to_end_workflow() {
     // Get token from environment variable or config file
     let token = env::var("TODOIST_API_TOKEN")
         .ok()
@@ -13,9 +14,21 @@ fn test_end_to_end_workflow() {
         })
         .expect("TODOIST_API_TOKEN env var or config file required");
 
-    println!("Integration test requires proper config handling");
-    println!(
-        "Token loaded successfully (first 8 chars): {}...",
-        &token[..8.min(token.len())]
-    );
+    println!("Integration test starting with real API...");
+
+    let client = todorust::sync::TodoistSyncClient::new(token);
+
+    // Test projects retrieval
+    let projects = client
+        .get_projects()
+        .await
+        .expect("Failed to fetch projects");
+    println!("Successfully fetched {} projects", projects.len());
+
+    // Test tasks retrieval
+    let tasks = client.get_tasks().await.expect("Failed to fetch tasks");
+    println!("Successfully fetched {} tasks", tasks.len());
+
+    // Verify we got some data if the account is not empty
+    // (If it's empty, we just verify the call succeeded)
 }
