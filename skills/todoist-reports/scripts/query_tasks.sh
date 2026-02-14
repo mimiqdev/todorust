@@ -30,6 +30,10 @@ case "$QUERY_TYPE" in
     # All active (incomplete) tasks
     todorust get tasks
     ;;
+  summary)
+    # Optimized summary for AI agents (minimal tokens)
+    todorust get tasks --fields "id,content,due_date" --limit 10
+    ;;
   custom)
     # Custom simple filter
     if [ -z "$EXTRA_ARGS" ]; then
@@ -40,11 +44,11 @@ case "$QUERY_TYPE" in
     todorust get tasks --filter "$EXTRA_ARGS"
     ;;
   *)
-    echo "Usage: $0 {daily|weekly|projects|active|custom} [options]" >&2
+    echo "Usage: $0 {daily|weekly|projects|active|summary|custom} [options]" >&2
     echo "" >&2
     echo "Examples:" >&2
     echo "  $0 daily                    # Tasks matching 'today'" >&2
-    echo "  $0 weekly                   # All tasks" >&2
+    echo "  $0 summary                  # Token-optimized top 10 tasks" >&2
     echo "  $0 projects                 # List all projects" >&2
     echo "  $0 active                   # All active tasks" >&2
     echo "  $0 custom \"Work\"            # Tasks matching 'Work'" >&2
