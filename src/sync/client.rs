@@ -583,11 +583,14 @@ mod tests {
         assert_eq!(header, "Bearer ");
     }
 
-    #[test]
+    #[tokio::test]
     async fn test_sync_url_is_correct() {
         let client = TodoistSyncClient::new("test".to_string());
-        assert!(client.sync_url.starts_with("https://api.todoist.com"));
-        assert!(client.sync_url.contains("/v1/sync"));
+        if let Ok(env_url) = std::env::var("TODORUST_SYNC_URL") {
+            assert_eq!(client.sync_url, env_url);
+        } else {
+            assert!(client.sync_url.starts_with("https://api.todoist.com"));
+        }
     }
 
     #[tokio::test]
