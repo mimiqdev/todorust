@@ -41,17 +41,21 @@ pub struct SyncWriteResponse {
 pub struct SyncProject {
     pub id: String,
     pub name: String,
+    #[serde(default)]
     pub color: String,
-    #[serde(default)]
+    #[serde(default, alias = "is_shared")]
     pub shared: bool,
-    #[serde(default)]
+    #[serde(default, alias = "is_favorite")]
     pub favorite: bool,
+    #[serde(default, alias = "child_order")]
     pub sort_order: i64,
     #[serde(default)]
     pub is_archived: bool,
     #[serde(default)]
     pub is_deleted: bool,
+    #[serde(default, alias = "added_at")]
     pub created_at: String,
+    #[serde(default)]
     pub updated_at: String,
 }
 
@@ -66,21 +70,25 @@ pub struct SyncTask {
     pub content: String,
     #[serde(default)]
     pub description: Option<String>,
+    #[serde(default)]
     pub priority: u8,
     #[serde(default)]
     pub due: Option<SyncDue>,
     #[serde(default)]
     pub labels: Vec<String>,
+    #[serde(default, alias = "child_order")]
     pub order: i64,
     #[serde(default)]
     pub indentation: i64,
-    #[serde(default)]
+    #[serde(default, alias = "checked")]
     pub is_completed: bool,
     #[serde(default)]
     pub is_archived: bool,
     #[serde(default)]
     pub is_deleted: bool,
+    #[serde(default, alias = "added_at")]
     pub created_at: String,
+    #[serde(default)]
     pub updated_at: String,
 }
 
@@ -367,18 +375,37 @@ mod tests {
     }
 
     #[test]
-    fn test_sync_response_with_all_fields() {
+    fn test_sync_task_deserialization_legacy() {
         let json = r#"{
-            "sync_token": "token123",
-            "full_sync": false,
-            "projects": [{"id": "p1", "name": "Project 1", "color": "red", "shared": false, "favorite": false, "sort_order": 0, "is_archived": false, "is_deleted": false, "created_at": "2024-01-01T00:00:00Z", "updated_at": "2024-01-01T00:00:00Z"}],
-            "items": [{"id": "t1", "content": "Task 1", "priority": 1, "order": 1, "is_completed": false, "created_at": "2024-01-01T00:00:00Z", "updated_at": "2024-01-01T00:00:00Z"}]
+            "id": "456",
+            "content": "Test Task",
+            "priority": 3,
+            "child_order": 5,
+            "checked": true,
+            "added_at": "2024-01-01T00:00:00Z"
         }"#;
 
-        let response: SyncReadResponse = serde_json::from_str(json).unwrap();
-        assert_eq!(response.sync_token, "token123");
-        assert!(!response.full_sync);
-        assert_eq!(response.projects.len(), 1);
-        assert_eq!(response.items.len(), 1);
+        let task: SyncTask = serde_json::from_str(json).unwrap();
+        assert_eq!(task.id, "456");
+        assert_eq!(task.order, 5);
+        assert!(task.is_completed);
+        assert_eq!(task.created_at, "2024-01-01T00:00:00Z");
+    }
+
+    #[test]
+    fn test_sync_project_deserialization_legacy() {
+        let json = r#"{
+            "id": "p1",
+            "name": "Project 1",
+            "child_order": 10,
+            "is_favorite": true,
+            "added_at": "2024-01-01T00:00:00Z"
+        }"#;
+
+        let project: SyncProject = serde_json::from_str(json).unwrap();
+        assert_eq!(project.id, "p1");
+        assert_eq!(project.sort_order, 10);
+        assert!(project.favorite);
+        assert_eq!(project.created_at, "2024-01-01T00:00:00Z");
     }
 }
