@@ -64,7 +64,7 @@
 **Task 9: Add Config File Management** ✅
 - Commit: 84e7857
 - init command implementation
-- Config file creation in ~/.config/todoirust/
+- Config file creation in ~/.config/todorust/
 
 **Task 10: Add Better Error Handling and Output** ✅
 - Commit: ad4b514

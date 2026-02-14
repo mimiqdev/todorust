@@ -11,7 +11,7 @@
  * ## Example
  *
  * ```ignore
- * use todorust::sync::commands::{CommandBuilder, ItemAddArgs};
+ * use todorust::sync::{CommandBuilder, ItemAddArgs};
  *
  * let mut builder = CommandBuilder::new();
  * builder
@@ -87,10 +87,10 @@ impl CommandBuilder {
         self
     }
 
-    /// 添加 item_reopen 命令 - 重新打开任务
-    pub fn item_reopen(mut self, id: &str) -> Self {
+    /// 添加 item_uncomplete 命令 - 取消完成任务（重新打开）
+    pub fn item_uncomplete(mut self, id: &str) -> Self {
         self.commands.push(Command {
-            type_: "item_reopen".to_string(),
+            type_: "item_uncomplete".to_string(),
             uuid: Command::generate_uuid(),
             temp_id: None,
             args: serde_json::json!({ "id": id }),
@@ -899,12 +899,12 @@ mod tests {
     }
 
     #[test]
-    fn test_item_reopen_command() {
-        let commands = CommandBuilder::new().item_reopen("123").build();
+    fn test_item_uncomplete_command() {
+        let commands = CommandBuilder::new().item_uncomplete("123").build();
         assert_eq!(commands.len(), 1);
 
         let cmd = &commands[0];
-        assert_eq!(cmd.type_, "item_reopen");
+        assert_eq!(cmd.type_, "item_uncomplete");
         assert!(cmd.temp_id.is_none());
     }
 

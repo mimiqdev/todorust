@@ -511,7 +511,7 @@ pub async fn complete_task(client: &TodoistSyncClient, task_id: String) -> Resul
 }
 
 pub async fn reopen_task(client: &TodoistSyncClient, task_id: String) -> Result<()> {
-    let builder = crate::sync::CommandBuilder::new().item_reopen(&task_id);
+    let builder = crate::sync::CommandBuilder::new().item_uncomplete(&task_id);
     client.execute(builder).await?;
     let response = serde_json::json!({
         "status": "success",

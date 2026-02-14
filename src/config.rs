@@ -23,7 +23,7 @@ pub fn load_config() -> Result<Config> {
     // Then, check for config file
     let config_dir = dirs::config_dir()
         .ok_or_else(|| TodoError::Config("Cannot find config directory".to_string()))?
-        .join("todoirust");
+        .join("todorust");
 
     let config_path = config_dir.join("config.toml");
 
@@ -42,7 +42,7 @@ pub fn load_config() -> Result<Config> {
 pub fn init_config(api_token: &str) -> Result<()> {
     let config_dir = dirs::config_dir()
         .ok_or_else(|| TodoError::Config("Cannot find config directory".to_string()))?
-        .join("todoirust");
+        .join("todorust");
 
     fs::create_dir_all(&config_dir)
         .map_err(|e| TodoError::Config(format!("Cannot create config directory: {}", e)))?;

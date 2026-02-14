@@ -84,7 +84,7 @@ pub struct Config {
 pub fn load_config() -> Result<Config> {
     let config_dir = dirs::config_dir()
         .ok_or_else(|| TodoError::Config("Cannot find config directory".to_string()))?
-        .join("todoirust");
+        .join("todorust");
     
     let config_path = config_dir.join("config.toml");
     
@@ -1029,7 +1029,7 @@ Expected: PASS
 Replace placeholder in `src/main.rs`:
 ```rust
 use clap::{Parser, Subcommand};
-use todoirust::{api::TodoistClient, config::load_config, error::TodoError};
+use todorust::{api::TodoistClient, config::load_config, error::TodoError};
 use serde_json::to_string_pretty;
 
 #[derive(Parser)]
@@ -1174,7 +1174,7 @@ Add to `src/config.rs`:
 pub fn init_config(api_token: &str) -> Result<()> {
     let config_dir = dirs::config_dir()
         .ok_or_else(|| TodoError::Config("Cannot find config directory".to_string()))?
-        .join("todoirust");
+        .join("todorust");
     
     fs::create_dir_all(&config_dir)
         .map_err(|e| TodoError::Config(format!("Cannot create config directory: {}", e)))?;
@@ -1244,7 +1244,7 @@ enum Commands {
 Add to main function in `src/main.rs`:
 ```rust
 Commands::Init { api_token } => {
-    todoirust::config::init_config(&api_token)?;
+    todorust::config::init_config(&api_token)?;
     println!("Configuration initialized successfully!");
 }
 ```
@@ -1256,12 +1256,12 @@ Expected: Success message and config file created
 
 **Step 7: Verify config file exists**
 
-Run: `cat ~/.config/todoirust/config.toml`
+Run: `cat ~/.config/todorust/config.toml`
 Expected: Config file with API token
 
 **Step 8: Cleanup test config**
 
-Run: `rm ~/.config/todoirust/config.toml`
+Run: `rm ~/.config/todorust/config.toml`
 
 **Step 9: Commit**
 
@@ -1319,7 +1319,7 @@ Modify `src/config.rs`:
 pub fn load_config() -> Result<Config> {
     let config_dir = dirs::config_dir()
         .ok_or_else(|| TodoError::Config("Cannot find config directory".to_string()))?
-        .join("todoirust");
+        .join("todorust");
     
     let config_path = config_dir.join("config.toml");
     

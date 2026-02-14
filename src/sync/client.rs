@@ -336,6 +336,14 @@ impl TodoistSyncClient {
         Ok(())
     }
 
+    /// 取消完成任务 (使用 Sync API)
+    pub async fn reopen_task(&self, id: &str) -> Result<(), TodoError> {
+        let builder = CommandBuilder::new().item_uncomplete(id);
+
+        self.execute(builder).await?;
+        Ok(())
+    }
+
     /// 删除任务 (使用 Sync API)
     pub async fn delete_task(&self, id: &str) -> Result<(), TodoError> {
         let builder = CommandBuilder::new().item_delete(id);

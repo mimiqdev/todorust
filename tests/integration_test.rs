@@ -4,7 +4,8 @@ use std::env;
 #[ignore]
 async fn test_end_to_end_workflow() {
     // Get token from environment variable or config file
-    let token = env::var("TODOIST_API_TOKEN")
+    let token = env::var("TODORUST_API_TOKEN")
+        .or_else(|_| env::var("TODOIST_API_TOKEN"))
         .ok()
         .or_else(|| {
             // Try loading from config file
@@ -29,6 +30,38 @@ async fn test_end_to_end_workflow() {
     let tasks = client.get_tasks().await.expect("Failed to fetch tasks");
     println!("Successfully fetched {} tasks", tasks.len());
 
-    // Verify we got some data if the account is not empty
-    // (If it's empty, we just verify the call succeeded)
+    // Test Task Lifecycle
+    println!("Testing task lifecycle (create -> complete -> reopen -> delete)...");
+
+    let task_id = client
+        .add_task(
+            "Integration Test Task",
+            Some("Created by integration test"),
+            None,
+            None,
+            None,
+            Some(4),
+            None,
+        )
+        .await
+        .expect("Failed to create task");
+    println!("Created task with ID: {}", task_id);
+
+    client
+        .complete_task(&task_id)
+        .await
+        .expect("Failed to complete task");
+    println!("Completed task {}", task_id);
+
+    client
+        .reopen_task(&task_id)
+        .await
+        .expect("Failed to reopen task");
+    println!("Reopened task {}", task_id);
+
+    client
+        .delete_task(&task_id)
+        .await
+        .expect("Failed to delete task");
+    println!("Deleted task {}", task_id);
 }

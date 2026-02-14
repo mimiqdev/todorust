@@ -436,7 +436,7 @@ mod tests {
     #[test]
     fn test_init_config() {
         let temp_dir = TempDir::new().unwrap();
-        let config_dir = temp_dir.path().join("todoirust");
+        let config_dir = temp_dir.path().join("todorust");
         
         // Mock dirs::config_dir
         // Note: This test would need to use a mock or test helper

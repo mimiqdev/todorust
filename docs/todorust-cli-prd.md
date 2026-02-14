@@ -228,7 +228,7 @@ Todorust-cli是一个专为AI工具和脚本集成的Todoist CLI工具，旨在�
 
 ### Security
 - 认证方式：使用Todoist API token（个人token或OAuth token）
-- Token存储：明文存储在用户本地配置文件 `~/.config/todoirust/config.toml`
+- Token存储：明文存储在用户本地配置文件 `~/.config/todorust/config.toml`
 - 数据传输：使用HTTPS，支持CORS
 - 不涉及敏感数据加密（Token由用户自行保管）
 
