@@ -28,7 +28,13 @@ async fn main() -> crate::error::Result<()> {
         .init();
 
     let cli = Cli::parse();
+    if let Err(e) = run(cli).await {
+        handle_error(e);
+    }
+    Ok(())
+}
 
+pub async fn run(cli: Cli) -> crate::error::Result<()> {
     // Handle init command separately (doesn't require config)
     if let Commands::Init(init_cmd) = &cli.command {
         let token = if let Some(t) = &init_cmd.api_token {
@@ -47,25 +53,18 @@ async fn main() -> crate::error::Result<()> {
         };
 
         if token.is_empty() {
-            handle_error(crate::error::TodoError::InvalidInput(
+            return Err(crate::error::TodoError::InvalidInput(
                 "API token cannot be empty".to_string(),
             ));
         }
 
-        if let Err(e) = crate::config::init_config(&token) {
-            handle_error(e);
-        }
+        crate::config::init_config(&token)?;
         println!("Configuration initialized successfully!");
         return Ok(());
     }
 
     // Load config for other commands
-    let config = match crate::config::load_config() {
-        Ok(c) => c,
-        Err(e) => {
-            handle_error(e);
-        }
-    };
+    let config = crate::config::load_config()?;
 
     // Mask API token for display: show "****" when token < 4
     let masked_token = if config.api_token.len() < 4 {
@@ -280,4 +279,63 @@ async fn main() -> crate::error::Result<()> {
     }
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::cli::InitCommand;
+
+    #[test]
+    fn test_cli_parsing_basic() {
+        let args = vec!["todorust", "get", "tasks"];
+        let cli = Cli::try_parse_from(args).unwrap();
+        assert!(matches!(
+            cli.command,
+            Commands::Get(GetCommands::Tasks { .. })
+        ));
+    }
+
+    #[tokio::test]
+    async fn test_run_init_with_token() {
+        let temp_dir = tempfile::tempdir().unwrap();
+        std::env::set_var("HOME", temp_dir.path()); // Redirect home for config storage
+
+        let cli = Cli {
+            format: OutputFormat::Json,
+            command: Commands::Init(InitCommand {
+                api_token: Some("test_token".to_string()),
+            }),
+        };
+
+        let result = run(cli).await;
+        assert!(result.is_ok());
+
+        let config_path = temp_dir
+            .path()
+            .join(".config")
+            .join("todorust")
+            .join("config.toml");
+        assert!(config_path.exists());
+    }
+
+    #[tokio::test]
+    async fn test_run_config_show_no_config() {
+        let temp_dir = tempfile::tempdir().unwrap();
+        std::env::set_var("HOME", temp_dir.path());
+        // Clean environment variable if set
+        std::env::remove_var("TODORUST_API_TOKEN");
+
+        let cli = Cli {
+            format: OutputFormat::Json,
+            command: Commands::Config(ConfigCommands::Get),
+        };
+
+        let result = run(cli).await;
+        assert!(result.is_err());
+        assert!(matches!(
+            result.unwrap_err(),
+            crate::error::TodoError::ConfigNotFound
+        ));
+    }
 }
