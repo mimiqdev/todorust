@@ -19,7 +19,7 @@ use super::models::{SyncReadResponse, SyncWriteResponse};
 ///
 /// # Example
 ///
-/// ```ignore
+/// ```no_run
 /// use todorust::sync::TodoistSyncClient;
 ///
 /// #[tokio::main]

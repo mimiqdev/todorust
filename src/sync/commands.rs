@@ -10,15 +10,13 @@
  *
  * ## Example
  *
- * ```ignore
+ * ```rust
  * use todorust::sync::{CommandBuilder, ItemAddArgs};
  *
- * let mut builder = CommandBuilder::new();
- * builder
+ * let commands = CommandBuilder::new()
  *     .item_add(ItemAddArgs::new("Buy milk".to_string()))
- *     .item_add(ItemAddArgs::new("Clean house".to_string()));
- *
- * let commands = builder.build();
+ *     .item_add(ItemAddArgs::new("Clean house".to_string()))
+ *     .build();
  * ```
  */
 
