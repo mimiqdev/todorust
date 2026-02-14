@@ -57,9 +57,12 @@ impl TodoistSyncClient {
             .build()
             .unwrap_or_else(|_| HttpClient::new());
 
+        let sync_url = std::env::var("TODORUST_SYNC_URL")
+            .unwrap_or_else(|_| "https://api.todoist.com/api/v1/sync".to_string());
+
         Self {
             token: token.trim().to_string(),
-            sync_url: "https://api.todoist.com/api/v1/sync".to_string(),
+            sync_url,
             sync_token: RefCell::new(None),
             http,
         }

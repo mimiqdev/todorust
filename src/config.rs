@@ -6,6 +6,7 @@
 use crate::error::{Result, TodoError};
 use serde::{Deserialize, Serialize};
 use std::fs;
+use std::path::PathBuf;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Config {
@@ -21,9 +22,13 @@ pub fn load_config() -> Result<Config> {
     }
 
     // Then, check for config file
-    let config_dir = dirs::config_dir()
-        .ok_or_else(|| TodoError::Config("Cannot find config directory".to_string()))?
-        .join("todorust");
+    let config_dir = if let Ok(dir) = std::env::var("TODORUST_CONFIG_DIR") {
+        PathBuf::from(dir)
+    } else {
+        dirs::config_dir()
+            .ok_or_else(|| TodoError::Config("Cannot find config directory".to_string()))?
+            .join("todorust")
+    };
 
     let config_path = config_dir.join("config.toml");
 
@@ -40,9 +45,13 @@ pub fn load_config() -> Result<Config> {
 }
 
 pub fn init_config(api_token: &str) -> Result<()> {
-    let config_dir = dirs::config_dir()
-        .ok_or_else(|| TodoError::Config("Cannot find config directory".to_string()))?
-        .join("todorust");
+    let config_dir = if let Ok(dir) = std::env::var("TODORUST_CONFIG_DIR") {
+        PathBuf::from(dir)
+    } else {
+        dirs::config_dir()
+            .ok_or_else(|| TodoError::Config("Cannot find config directory".to_string()))?
+            .join("todorust")
+    };
 
     fs::create_dir_all(&config_dir)
         .map_err(|e| TodoError::Config(format!("Cannot create config directory: {}", e)))?;

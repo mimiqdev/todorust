@@ -723,6 +723,289 @@ mod tests {
         assert!(result.is_ok());
     }
 
+    #[tokio::test]
+    async fn test_get_sections_handler() {
+        let server = MockServer::start();
+        let client = TodoistSyncClient::new_with_url("token".to_string(), server.url("/sync"));
+
+        server.mock(|when, then| {
+            when.method(POST).path("/sync");
+            then.status(200).json_body(json!({
+                "sync_token": "token123",
+                "sections": [
+                    {
+                        "id": "s1",
+                        "project_id": "p1",
+                        "name": "Section 1",
+                        "order": 1,
+                        "created_at": "2024-01-01T00:00:00Z"
+                    }
+                ]
+            }));
+        });
+
+        let result = get_sections(&client, Some("p1"), &OutputFormat::Json, None).await;
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_get_filters_handler() {
+        let server = MockServer::start();
+        let client = TodoistSyncClient::new_with_url("token".to_string(), server.url("/sync"));
+
+        server.mock(|when, then| {
+            when.method(POST).path("/sync");
+            then.status(200).json_body(json!({
+                "sync_token": "token123",
+                "filters": [
+                    {
+                        "id": "f1",
+                        "name": "Filter 1",
+                        "query": "today"
+                    }
+                ]
+            }));
+        });
+
+        let result = get_filters(&client, &OutputFormat::Json, None).await;
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_get_labels_handler() {
+        let server = MockServer::start();
+        let client = TodoistSyncClient::new_with_url("token".to_string(), server.url("/sync"));
+
+        server.mock(|when, then| {
+            when.method(POST).path("/sync");
+            then.status(200).json_body(json!({
+                "sync_token": "token123",
+                "labels": [
+                    {
+                        "id": "l1",
+                        "name": "Label 1",
+                        "color": "red"
+                    }
+                ]
+            }));
+        });
+
+        let result = get_labels(&client, &OutputFormat::Json, None).await;
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_edit_task_handler() {
+        let server = MockServer::start();
+        let client = TodoistSyncClient::new_with_url("token".to_string(), server.url("/sync"));
+
+        server.mock(|when, then| {
+            when.method(POST).path("/sync");
+            then.status(200).json_body(json!({
+                "sync_token": "token123",
+                "sync_status": {"uuid": "ok"}
+            }));
+        });
+
+        let result = edit_task(
+            &client,
+            "123".to_string(),
+            Some("Updated Title".to_string()),
+            None,
+            None,
+            None,
+            Some(3),
+            None,
+        )
+        .await;
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_delete_task_handler() {
+        let server = MockServer::start();
+        let client = TodoistSyncClient::new_with_url("token".to_string(), server.url("/sync"));
+
+        server.mock(|when, then| {
+            when.method(POST).path("/sync");
+            then.status(200).json_body(json!({
+                "sync_token": "token123",
+                "sync_status": {"uuid": "ok"}
+            }));
+        });
+
+        let result = delete_task(&client, "123".to_string()).await;
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_move_task_handler() {
+        let server = MockServer::start();
+        let client = TodoistSyncClient::new_with_url("token".to_string(), server.url("/sync"));
+
+        server.mock(|when, then| {
+            when.method(POST).path("/sync");
+            then.status(200).json_body(json!({
+                "sync_token": "token123",
+                "sync_status": {"uuid": "ok"}
+            }));
+        });
+
+        let result = move_task(&client, "123".to_string(), "proj1".to_string(), None).await;
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_complete_reopen_task_handlers() {
+        let server = MockServer::start();
+        let client = TodoistSyncClient::new_with_url("token".to_string(), server.url("/sync"));
+
+        server.mock(|when, then| {
+            when.method(POST).path("/sync");
+            then.status(200).json_body(json!({
+                "sync_token": "token123",
+                "sync_status": {"uuid": "ok"}
+            }));
+        });
+
+        assert!(complete_task(&client, "123".to_string()).await.is_ok());
+        assert!(reopen_task(&client, "123".to_string()).await.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_get_task_handler() {
+        let server = MockServer::start();
+        let client = TodoistSyncClient::new_with_url("token".to_string(), server.url("/sync"));
+
+        server.mock(|when, then| {
+            when.method(POST).path("/sync");
+            then.status(200).json_body(json!({
+                "sync_token": "token123",
+                "items": [
+                    {
+                        "id": "1",
+                        "content": "Task 1",
+                        "priority": 4,
+                        "checked": false,
+                        "added_at": "2024-01-01T00:00:00Z",
+                        "child_order": 1
+                    }
+                ],
+                "projects": []
+            }));
+        });
+
+        let result = get_task(&client, "1", &OutputFormat::Json, None).await;
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_edit_project_handler() {
+        let server = MockServer::start();
+        let client = TodoistSyncClient::new_with_url("token".to_string(), server.url("/sync"));
+
+        server.mock(|when, then| {
+            when.method(POST).path("/sync");
+            then.status(200).json_body(json!({
+                "sync_token": "token123",
+                "sync_status": {"uuid": "ok"}
+            }));
+        });
+
+        let result = edit_project(&client, "p1".to_string(), Some("New Name".to_string())).await;
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_edit_section_handler() {
+        let server = MockServer::start();
+        let client = TodoistSyncClient::new_with_url("token".to_string(), server.url("/sync"));
+
+        server.mock(|when, then| {
+            when.method(POST).path("/sync");
+            then.status(200).json_body(json!({
+                "sync_token": "token123",
+                "sync_status": {"uuid": "ok"}
+            }));
+        });
+
+        let result = edit_section(&client, "s1".to_string(), Some("New Name".to_string())).await;
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_delete_project_section_handlers() {
+        let server = MockServer::start();
+        let client = TodoistSyncClient::new_with_url("token".to_string(), server.url("/sync"));
+
+        server.mock(|when, then| {
+            when.method(POST).path("/sync");
+            then.status(200).json_body(json!({
+                "sync_token": "token123",
+                "sync_status": {"uuid": "ok"}
+            }));
+        });
+
+        assert!(delete_project(&client, "p1".to_string()).await.is_ok());
+        assert!(delete_section(&client, "s1".to_string()).await.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_edit_label_filter_handlers() {
+        let server = MockServer::start();
+        let client = TodoistSyncClient::new_with_url("token".to_string(), server.url("/sync"));
+
+        server.mock(|when, then| {
+            when.method(POST).path("/sync");
+            then.status(200).json_body(json!({
+                "sync_token": "token123",
+                "sync_status": {"uuid": "ok"}
+            }));
+        });
+
+        assert!(edit_label(
+            &client,
+            "l1".to_string(),
+            Some("n".to_string()),
+            Some("c".to_string())
+        )
+        .await
+        .is_ok());
+        assert!(edit_filter(
+            &client,
+            "f1".to_string(),
+            Some("n".to_string()),
+            Some("q".to_string()),
+            Some("c".to_string())
+        )
+        .await
+        .is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_reorder_sections_handler() {
+        let server = MockServer::start();
+        let client = TodoistSyncClient::new_with_url("token".to_string(), server.url("/sync"));
+
+        server.mock(|when, then| {
+            when.method(POST).path("/sync");
+            then.status(200).json_body(json!({
+                "sync_token": "token123",
+                "sync_status": {"uuid": "ok"}
+            }));
+        });
+
+        let result = reorder_sections(&client, "s1,s2".to_string()).await;
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_generate_completions() {
+        use clap_complete::Shell;
+        // This just verifies it doesn't panic
+        generate_completions(Shell::Bash);
+    }
+
     #[test]
     fn test_validate_priority() {
         assert!(validate_priority(1));
