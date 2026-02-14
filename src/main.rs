@@ -299,7 +299,11 @@ mod tests {
     #[tokio::test]
     async fn test_run_init_with_token() {
         let temp_dir = tempfile::tempdir().unwrap();
-        std::env::set_var("HOME", temp_dir.path()); // Redirect home for config storage
+        let temp_path = temp_dir.path().to_path_buf();
+
+        // Redirect both HOME and XDG_CONFIG_HOME for Linux/macOS
+        std::env::set_var("HOME", &temp_path);
+        std::env::set_var("XDG_CONFIG_HOME", &temp_path);
 
         let cli = Cli {
             format: OutputFormat::Json,
@@ -311,18 +315,33 @@ mod tests {
         let result = run(cli).await;
         assert!(result.is_ok());
 
-        let config_path = temp_dir
-            .path()
-            .join(".config")
-            .join("todorust")
-            .join("config.toml");
-        assert!(config_path.exists());
+        // Check if the config file was created somewhere inside the temp directory
+        // This is more robust against OS-specific paths from 'dirs' crate
+        fn find_config(path: &std::path::Path) -> bool {
+            if path.is_file() && path.ends_with("todorust/config.toml") {
+                return true;
+            }
+            if path.is_dir() {
+                if let Ok(entries) = std::fs::read_dir(path) {
+                    for entry in entries.flatten() {
+                        if find_config(&entry.path()) {
+                            return true;
+                        }
+                    }
+                }
+            }
+            false
+        }
+
+        assert!(find_config(&temp_path));
     }
 
     #[tokio::test]
     async fn test_run_config_show_no_config() {
         let temp_dir = tempfile::tempdir().unwrap();
-        std::env::set_var("HOME", temp_dir.path());
+        let temp_path = temp_dir.path().to_path_buf();
+        std::env::set_var("HOME", &temp_path);
+        std::env::set_var("XDG_CONFIG_HOME", &temp_path);
         // Clean environment variable if set
         std::env::remove_var("TODORUST_API_TOKEN");
 
