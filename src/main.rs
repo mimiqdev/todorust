@@ -18,6 +18,12 @@ use clap::Parser;
 
 #[tokio::main]
 async fn main() -> crate::error::Result<()> {
+    // Initialize tracing
+    tracing_subscriber::fmt()
+        .with_env_filter(tracing_subscriber::EnvFilter::from_default_env())
+        .with_writer(std::io::stderr) // Send logs to stderr so they don't mess up piped output
+        .init();
+
     let cli = Cli::parse();
 
     // Handle init command separately (doesn't require config)

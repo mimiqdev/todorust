@@ -84,12 +84,15 @@ impl TodoistSyncClient {
     /// # Returns
     ///
     /// A `SyncReadResponse` containing the synced resources and a new sync_token.
+    #[tracing::instrument(skip(self), fields(resource_types = ?resource_types))]
     pub async fn sync(&self, resource_types: &[&str]) -> Result<SyncReadResponse, TodoError> {
         let sync_token = self
             .sync_token
             .borrow()
             .clone()
             .unwrap_or_else(|| "*".to_string());
+
+        tracing::debug!(sync_token = %sync_token, "Performing sync request");
 
         let response = self
             .http
@@ -106,14 +109,22 @@ impl TodoistSyncClient {
             .await?;
 
         let status = response.status();
+        tracing::debug!(status = %status, "Received sync response");
+
         let body = response.text().await?;
 
         if !status.is_success() {
+            tracing::error!(status = %status, body = %body, "Sync request failed");
             return Err(TodoError::Http(status.as_u16()));
         }
 
-        serde_json::from_str(&body)
-            .map_err(|e| TodoError::Api(format!("Failed to parse sync response: {}", e)))
+        let parsed: SyncReadResponse = serde_json::from_str(&body)
+            .map_err(|e| TodoError::Api(format!("Failed to parse sync response: {}", e)))?;
+        
+        // Update sync token
+        self.set_sync_token(parsed.sync_token.clone());
+        
+        Ok(parsed)
     }
 
     /// 执行命令（写入资源）
@@ -125,10 +136,13 @@ impl TodoistSyncClient {
     /// # Returns
     ///
     /// A `SyncWriteResponse` containing the sync_token and command status.
+    #[tracing::instrument(skip(self, commands))]
     pub async fn execute_commands(
         &self,
         commands: &[Command],
     ) -> Result<SyncWriteResponse, TodoError> {
+        tracing::debug!(command_count = commands.len(), "Executing batch commands");
+
         let response = self
             .http
             .post(&self.sync_url)
@@ -138,14 +152,22 @@ impl TodoistSyncClient {
             .await?;
 
         let status = response.status();
+        tracing::debug!(status = %status, "Received command execution response");
+
         let body = response.text().await?;
 
         if !status.is_success() {
+            tracing::error!(status = %status, body = %body, "Command execution failed");
             return Err(TodoError::Http(status.as_u16()));
         }
 
-        serde_json::from_str(&body)
-            .map_err(|e| TodoError::Api(format!("Failed to parse command response: {}", e)))
+        let parsed: SyncWriteResponse = serde_json::from_str(&body)
+            .map_err(|e| TodoError::Api(format!("Failed to parse command response: {}", e)))?;
+        
+        // Update sync token
+        self.set_sync_token(parsed.sync_token.clone());
+
+        Ok(parsed)
     }
 
     /// Gets the current sync token.
