@@ -138,6 +138,14 @@ mod tests {
     }
 
     #[test]
+    fn test_todo_error_from_io() {
+        let io_error = std::io::Error::new(std::io::ErrorKind::NotFound, "not found");
+        let todo_error: TodoError = io_error.into();
+        assert!(matches!(todo_error, TodoError::Io(_)));
+        assert_eq!(format!("{}", todo_error), "IO error: not found");
+    }
+
+    #[test]
     fn test_todo_error_debug() {
         let error = TodoError::Config("debug test".to_string());
         let debug_format = format!("{:?}", error);

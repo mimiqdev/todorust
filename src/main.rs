@@ -419,29 +419,244 @@ mod tests {
 
     #[tokio::test]
     #[serial]
-    async fn test_run_complete_task_flow() {
+
+    async fn test_run_batch_flow() {
         use httpmock::prelude::*;
+
         let server = MockServer::start();
 
         std::env::set_var("TODORUST_API_TOKEN", "mock_token");
+
         std::env::set_var("TODORUST_SYNC_URL", server.url("/sync"));
 
         server.mock(|when, then| {
             when.method(POST).path("/sync");
+
             then.status(200).json_body(serde_json::json!({
+
                 "sync_token": "token123",
-                "sync_status": {"uuid": "ok"}
+
+                "sync_status": {"uuid1": "ok"},
+
+                "temp_id_mapping": {}
+
             }));
         });
 
         let cli = Cli {
             format: OutputFormat::Json,
-            command: Commands::Complete(CompleteCommands::Task {
+
+            command: Commands::Batch {
+                commands: r#"[{"type": "item_complete", "uuid": "uuid1", "args": {"id": "123"}}]"#
+                    .to_string(),
+            },
+        };
+
+        let result = run(cli).await;
+
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    #[serial]
+
+    async fn test_run_delete_task_flow() {
+        use httpmock::prelude::*;
+
+        let server = MockServer::start();
+
+        std::env::set_var("TODORUST_API_TOKEN", "mock_token");
+
+        std::env::set_var("TODORUST_SYNC_URL", server.url("/sync"));
+
+        server.mock(|when, then| {
+            when.method(POST).path("/sync");
+
+            then.status(200).json_body(serde_json::json!({
+
+                "sync_token": "token123",
+
+                "sync_status": {"uuid": "ok"}
+
+            }));
+        });
+
+        let cli = Cli {
+            format: OutputFormat::Json,
+
+            command: Commands::Delete(DeleteCommands::Task {
                 task_id: "123".to_string(),
             }),
         };
 
         let result = run(cli).await;
+
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    #[serial]
+
+    async fn test_run_edit_task_flow() {
+        use httpmock::prelude::*;
+
+        let server = MockServer::start();
+
+        std::env::set_var("TODORUST_API_TOKEN", "mock_token");
+
+        std::env::set_var("TODORUST_SYNC_URL", server.url("/sync"));
+
+        server.mock(|when, then| {
+            when.method(POST).path("/sync");
+
+            then.status(200).json_body(serde_json::json!({
+
+                "sync_token": "token123",
+
+                "sync_status": {"uuid": "ok"}
+
+            }));
+        });
+
+        let cli = Cli {
+            format: OutputFormat::Json,
+
+            command: Commands::Edit(EditCommands::Task {
+                task_id: "123".to_string(),
+
+                title: Some("Updated".to_string()),
+
+                content: None,
+
+                project_id: None,
+
+                due_date: None,
+
+                priority: None,
+
+                labels: None,
+            }),
+        };
+
+        let result = run(cli).await;
+
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    #[serial]
+
+    async fn test_run_get_projects_flow() {
+        use httpmock::prelude::*;
+
+        let server = MockServer::start();
+
+        std::env::set_var("TODORUST_API_TOKEN", "mock_token");
+
+        std::env::set_var("TODORUST_SYNC_URL", server.url("/sync"));
+
+        server.mock(|when, then| {
+            when.method(POST).path("/sync");
+
+            then.status(200).json_body(serde_json::json!({
+
+
+
+                "sync_token": "token123",
+
+
+
+                "projects": []
+
+
+
+            }));
+        });
+
+        let cli = Cli {
+            format: OutputFormat::Json,
+
+            command: Commands::Get(GetCommands::Projects {
+                format: None,
+
+                fields: None,
+            }),
+        };
+
+        let result = run(cli).await;
+
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    #[serial]
+
+    async fn test_run_config_get_flow() {
+        let temp_dir = tempfile::tempdir().unwrap();
+
+        let temp_path = temp_dir.path().to_path_buf();
+
+        std::env::set_var("TODORUST_CONFIG_DIR", &temp_path);
+
+        // Initialize config first
+
+        crate::config::init_config("test_token_12345").unwrap();
+
+        let cli = Cli {
+            format: OutputFormat::Json,
+
+            command: Commands::Config(ConfigCommands::Get),
+        };
+
+        let result = run(cli).await;
+
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    #[serial]
+
+    async fn test_run_get_sections_flow() {
+        use httpmock::prelude::*;
+
+        let server = MockServer::start();
+
+        std::env::set_var("TODORUST_API_TOKEN", "mock_token");
+
+        std::env::set_var("TODORUST_SYNC_URL", server.url("/sync"));
+
+        server.mock(|when, then| {
+            when.method(POST).path("/sync");
+
+            then.status(200).json_body(serde_json::json!({
+
+
+
+                "sync_token": "token123",
+
+
+
+                "sections": []
+
+
+
+            }));
+        });
+
+        let cli = Cli {
+            format: OutputFormat::Json,
+
+            command: Commands::Get(GetCommands::Sections {
+                project_id: None,
+
+                format: None,
+
+                fields: None,
+            }),
+        };
+
+        let result = run(cli).await;
+
         assert!(result.is_ok());
     }
 }

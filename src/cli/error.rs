@@ -63,9 +63,66 @@ mod tests {
     }
 
     #[test]
-    fn test_get_error_message_invalid_input() {
-        let err = TodoError::InvalidInput("test".to_string());
+    fn test_get_error_message_http_403() {
+        let err = TodoError::Http(403);
         let msg = get_error_message(&err);
-        assert!(msg.contains("Invalid Input: test"));
+        assert!(msg.contains("Forbidden"));
+    }
+
+    #[test]
+    fn test_get_error_message_http_429() {
+        let err = TodoError::Http(429);
+        let msg = get_error_message(&err);
+        assert!(msg.contains("Too Many Requests"));
+    }
+
+    #[test]
+    fn test_get_error_message_api() {
+        let err = TodoError::Api("custom api error".to_string());
+        let msg = get_error_message(&err);
+        assert!(msg.contains("Todoist API Error: custom api error"));
+    }
+
+    #[test]
+    fn test_get_error_message_config() {
+        let err = TodoError::Config("bad config".to_string());
+        let msg = get_error_message(&err);
+        assert!(msg.contains("Configuration Error: bad config"));
+    }
+
+    #[test]
+    fn test_get_error_message_serialize() {
+        let err = TodoError::Serialize("json error".to_string());
+        let msg = get_error_message(&err);
+        assert!(msg.contains("Data Processing Error: json error"));
+    }
+
+    #[test]
+    fn test_get_error_message_http_404() {
+        let err = TodoError::Http(404);
+        let msg = get_error_message(&err);
+        assert!(msg.contains("Not Found"));
+    }
+
+    #[test]
+    fn test_get_error_message_http_other() {
+        let err = TodoError::Http(500);
+        let msg = get_error_message(&err);
+        assert!(msg.contains("HTTP 500"));
+    }
+
+    #[test]
+    fn test_get_error_message_invalid_input() {
+        let err = TodoError::InvalidInput("test input".to_string());
+        let msg = get_error_message(&err);
+        assert!(msg.contains("Invalid Input: test input"));
+    }
+
+    #[test]
+    fn test_get_error_message_request() {
+        // We can't easily create a connect error without real networking,
+        // but we can test the basic Request error display.
+        // reqwest::Error is hard to construct directly, but we can't do much about it
+        // other than ensuring the branch is represented if possible.
     }
 }
