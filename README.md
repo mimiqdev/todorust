@@ -54,10 +54,10 @@ Get your token from: https://todoist.com/app/settings/integrations
 
 ```bash
 # View current configuration
-todorust config show
+todorust config get
 
 # Update API token
-todorust config set api-token NEW_TOKEN
+todorust config set --api-token NEW_TOKEN
 ```
 
 #### get - Retrieve Resources
@@ -66,6 +66,9 @@ todorust config set api-token NEW_TOKEN
 # Get tasks (default format: JSON)
 todorust get tasks
 todorust get tasks --format json
+
+# Get tasks with field selection (AI-optimized, saves tokens)
+todorust get tasks --fields "id,content,priority" --limit 10
 
 # Get tasks as checklist
 todorust get tasks --format checklist
@@ -148,7 +151,7 @@ todorust move task --task-id "456" --project-id "101"
 
 ```bash
 # Reorder sections within a project
-todorust reorder sections --project-id "123" --section-ids "456,789,101"
+todorust reorder sections --section-ids "456,789,101"
 ```
 
 #### complete - Complete Tasks
@@ -171,6 +174,31 @@ todorust reopen task --task-id "456"
 # Delete a task
 todorust delete task --task-id "456"
 ```
+
+#### batch - Execute Multiple Commands
+
+Batch operations allow you to execute multiple commands in a single Sync API request. This is highly efficient for AI agents and automation.
+
+```bash
+# Execute multiple commands from a JSON array
+todorust batch '[
+  {"type": "item_add", "args": {"content": "First task"}},
+  {"type": "item_add", "args": {"content": "Second task", "priority": 4}},
+  {"type": "item_complete", "args": {"id": "123456"}},
+  {"type": "project_add", "args": {"name": "New Batch Project"}}
+]'
+```
+
+The command returns a JSON object containing the `sync_status` for each command (by UUID) and any `temp_id_mapping` for newly created resources.
+
+### AI-Agent Optimization
+
+Todorust is designed specifically to be used by AI agents (like LLMs):
+
+1.  **JSON by Default**: All commands output structured JSON unless specified otherwise.
+2.  **Field Selection**: Use `--fields "id,content,due"` to reduce the context window size and save tokens.
+3.  **Result Limiting**: Use `--limit 5` to keep responses concise.
+4.  **Batching**: Combine multiple mutations into a single `batch` call to reduce latency and API overhead.
 
 ## Output Formats
 
@@ -222,17 +250,6 @@ Todorust provides built-in skills for AI agents:
 - **todoist-reports**: Data retrieval and formatting (checklists, summaries for note-taking).
 
 See the `skills/` directory for details.
-
-## Legacy Commands (Backward Compatible)
-
-The following legacy commands are still supported for backward compatibility:
-
-| Legacy Command | New Command |
-|----------------|-------------|
-| `todorust tasks` | `todorust get tasks` |
-| `todorust projects` | `todorust get projects` |
-| `todorust filters` | `todorust get filters` |
-| `todorust create` | `todorust add` |
 
 ## Development
 
