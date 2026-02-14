@@ -31,7 +31,6 @@
 //! - [`api`]: Legacy REST API client (deprecated, use [`sync`] instead)
 //! - [`formatter`]: Output formatting utilities
 
-pub mod api;
 pub mod config;
 pub mod error;
 pub mod formatter;
