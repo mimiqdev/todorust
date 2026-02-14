@@ -15,7 +15,10 @@ async fn test_end_to_end_workflow() {
         })
         .expect("TODOIST_API_TOKEN env var or config file required");
 
-    println!("Integration test starting with real API...");
+    println!(
+        "Integration test starting with real API (token prefix: {})...",
+        &token[..4.min(token.len())]
+    );
 
     let client = todorust::sync::TodoistSyncClient::new(token);
 

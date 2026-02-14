@@ -52,18 +52,23 @@ impl TodoistSyncClient {
     ///
     /// A new `TodoistSyncClient` instance
     pub fn new(token: String) -> Self {
+        let http = HttpClient::builder()
+            .user_agent("todorust/0.3.0")
+            .build()
+            .unwrap_or_else(|_| HttpClient::new());
+
         Self {
-            token,
+            token: token.trim().to_string(),
             sync_url: "https://api.todoist.com/api/v1/sync".to_string(),
             sync_token: RefCell::new(None),
-            http: HttpClient::new(),
+            http,
         }
     }
 
     #[cfg(test)]
     pub fn new_with_url(token: String, sync_url: String) -> Self {
         Self {
-            token,
+            token: token.trim().to_string(),
             sync_url,
             sync_token: RefCell::new(None),
             http: HttpClient::new(),
@@ -141,13 +146,26 @@ impl TodoistSyncClient {
         &self,
         commands: &[Command],
     ) -> Result<SyncWriteResponse, TodoError> {
-        tracing::debug!(command_count = commands.len(), "Executing batch commands");
+        let sync_token = self
+            .sync_token
+            .borrow()
+            .clone()
+            .unwrap_or_else(|| "*".to_string());
+
+        tracing::debug!(
+            command_count = commands.len(),
+            sync_token = %sync_token,
+            "Executing batch commands"
+        );
 
         let response = self
             .http
             .post(&self.sync_url)
             .header("Authorization", self.get_auth_header())
-            .form(&[("commands", serde_json::to_string(commands).unwrap())])
+            .form(&[
+                ("sync_token", sync_token),
+                ("commands", serde_json::to_string(commands).unwrap()),
+            ])
             .send()
             .await?;
 
