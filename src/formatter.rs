@@ -717,4 +717,47 @@ mod tests {
         assert!(output.contains("\"content\": \"Task 1\""));
         assert!(!output.contains("\"priority\""));
     }
+
+    #[test]
+    fn test_format_labels_json() {
+        let labels = vec![crate::sync::SyncLabel {
+            id: "l1".to_string(),
+            name: "Label 1".to_string(),
+            color: "blue".to_string(),
+            is_favorite: false,
+        }];
+        let output = labels.format(&OutputFormat::Json);
+        assert!(output.contains("Label 1"));
+    }
+
+    #[test]
+    fn test_format_labels_checklist() {
+        let labels = vec![crate::sync::SyncLabel {
+            id: "l1".to_string(),
+            name: "Label 1".to_string(),
+            color: "blue".to_string(),
+            is_favorite: false,
+        }];
+        let output = labels.format(&OutputFormat::Checklist);
+        assert!(output.contains("- [ ] Label 1"));
+    }
+
+    #[test]
+    fn test_format_labels_structured() {
+        let labels = vec![crate::sync::SyncLabel {
+            id: "l1".to_string(),
+            name: "Label 1".to_string(),
+            color: "blue".to_string(),
+            is_favorite: false,
+        }];
+        let output = labels.format(&OutputFormat::Structured);
+        assert!(output.contains("### Label 1"));
+    }
+
+    #[test]
+    fn test_filter_json_invalid_input() {
+        let json = serde_json::json!("not an object");
+        let filtered = filter_json(json.clone(), "id");
+        assert_eq!(filtered, json);
+    }
 }

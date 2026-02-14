@@ -63,6 +63,12 @@ pub async fn run(cli: Cli) -> crate::error::Result<()> {
         return Ok(());
     }
 
+    // Handle completion command separately (doesn't require config)
+    if let Commands::Completion { shell } = &cli.command {
+        cli::handlers::generate_completions(*shell);
+        return Ok(());
+    }
+
     // Load config for other commands
     let config = crate::config::load_config()?;
 
@@ -269,13 +275,8 @@ pub async fn run(cli: Cli) -> crate::error::Result<()> {
             cli::handlers::batch(&client, commands.clone()).await?;
         }
 
-        // Completion command
-        Commands::Completion { shell } => {
-            cli::handlers::generate_completions(*shell);
-        }
-
-        // Init was handled above
-        Commands::Init(_) => unreachable!(),
+        // Completion and Init were handled above
+        Commands::Completion { .. } | Commands::Init(_) => unreachable!(),
     }
 
     Ok(())
@@ -630,15 +631,9 @@ mod tests {
 
             then.status(200).json_body(serde_json::json!({
 
-
-
                 "sync_token": "token123",
 
-
-
                 "sections": []
-
-
 
             }));
         });
@@ -656,6 +651,146 @@ mod tests {
         };
 
         let result = run(cli).await;
+
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    #[serial]
+
+    async fn test_run_move_task_flow() {
+        use httpmock::prelude::*;
+
+        let server = MockServer::start();
+
+        std::env::set_var("TODORUST_API_TOKEN", "mock_token");
+
+        std::env::set_var("TODORUST_SYNC_URL", server.url("/sync"));
+
+        server.mock(|when, then| {
+            when.method(POST).path("/sync");
+
+            then.status(200).json_body(serde_json::json!({
+
+                "sync_token": "token123",
+
+                "sync_status": {"uuid": "ok"}
+
+            }));
+        });
+
+        let cli = Cli {
+            format: OutputFormat::Json,
+
+            command: Commands::Move(MoveCommands::Task {
+                task_id: "123".to_string(),
+
+                project_id: "proj1".to_string(),
+
+                section_id: None,
+            }),
+        };
+
+        let result = run(cli).await;
+
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    #[serial]
+
+    async fn test_run_reorder_sections_flow() {
+        use httpmock::prelude::*;
+
+        let server = MockServer::start();
+
+        std::env::set_var("TODORUST_API_TOKEN", "mock_token");
+
+        std::env::set_var("TODORUST_SYNC_URL", server.url("/sync"));
+
+        server.mock(|when, then| {
+            when.method(POST).path("/sync");
+
+            then.status(200).json_body(serde_json::json!({
+
+                "sync_token": "token123",
+
+                "sync_status": {"uuid": "ok"}
+
+            }));
+        });
+
+        let cli = Cli {
+            format: OutputFormat::Json,
+
+            command: Commands::Reorder(ReorderCommands::Sections {
+                section_ids: "s1,s2".to_string(),
+            }),
+        };
+
+        let result = run(cli).await;
+
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    #[serial]
+
+    async fn test_run_add_section_flow() {
+        use httpmock::prelude::*;
+
+        let server = MockServer::start();
+
+        std::env::set_var("TODORUST_API_TOKEN", "mock_token");
+
+        std::env::set_var("TODORUST_SYNC_URL", server.url("/sync"));
+
+        server.mock(|when, then| {
+            when.method(POST).path("/sync");
+
+            then.status(200).json_body(serde_json::json!({
+
+                "sync_token": "token123",
+
+                "sync_status": {"uuid": "ok"},
+
+                "temp_id_mapping": {"temp": "real_sec_id"}
+
+            }));
+        });
+
+        let cli = Cli {
+            format: OutputFormat::Json,
+
+            command: Commands::Add(AddCommands::Section {
+                name: "New Section".to_string(),
+
+                project_id: "proj1".to_string(),
+            }),
+        };
+
+        let result = run(cli).await;
+
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    #[serial]
+
+    async fn test_run_completion_flow() {
+        let cli = Cli {
+            format: OutputFormat::Json,
+
+            command: Commands::Completion {
+                shell: clap_complete::Shell::Bash,
+            },
+        };
+
+        let result = run(cli).await;
+
+        if let Err(ref e) = result {
+            println!("test_run_completion_flow failed with error: {:?}", e);
+        }
 
         assert!(result.is_ok());
     }
