@@ -1,5 +1,32 @@
 # Todorust Usage Guide
 
+## Core Commands
+
+### Get Resources
+```bash
+todorust get tasks --filter "today"
+todorust get projects
+todorust get filters
+todorust get labels
+todorust get sections --project-id "123"
+```
+
+### Add Resources
+```bash
+todorust add task --title "Buy milk"
+todorust add project --name "Side Project"
+todorust add label --name "urgent"
+todorust add filter --name "Today" --query "today"
+```
+
+### Manage Tasks
+```bash
+todorust complete task --task-id "123"
+todorust reopen task --task-id "123"
+todorust move task --task-id "123" --project-id "456"
+todorust delete task --task-id "123"
+```
+
 ## Filter Syntax Examples
 
 ### By Project

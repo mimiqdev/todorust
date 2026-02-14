@@ -214,6 +214,15 @@ Output:
 - [ ] Review docs (Priority: 3)
 ```
 
+## Agent Skills
+
+Todorust provides built-in skills for AI agents:
+
+- **todorust**: Core management skill (create, edit, move, delete).
+- **todoist-reports**: Data retrieval and formatting (checklists, summaries for note-taking).
+
+See the `skills/` directory for details.
+
 ## Legacy Commands (Backward Compatible)
 
 The following legacy commands are still supported for backward compatibility:

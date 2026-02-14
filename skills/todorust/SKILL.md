@@ -1,121 +1,121 @@
 ---
 name: todorust
-description: Manage Todoist tasks via the `todorust` CLI (create/read/update/complete tasks, list projects/filters). Use when a user asks to add a task to Todoist, list tasks by project/date/priority, search tasks, or manage projects.
+description: Manage Todoist tasks, projects, sections, filters, and labels via the `todorust` CLI. Use when a user asks to manage their Todoist data, including creating tasks, listing projects, completing tasks, or moving tasks between sections.
 homepage: https://github.com/mimiqdev/todorust
-metadata: {"clawdbot":{"emoji":"✅","requires":{"bins":["todorust"]}}}
+metadata: {"gemini":{"emoji":"✅","requires":{"bins":["todorust"]}}}
 ---
 
 # Todorust
 
-Todoist CLI tool with optimized JSON output.
+Todoist CLI tool with optimized JSON output for AI agents.
 
 ## Setup
 
-- Install: `cargo install --git https://github.com/mimiqdev/todorust`
-- Configure: `todorust init` (sets API token)
+- Install: `cargo install --path .` (from project root)
+- Configure: `todorust init --api-token YOUR_TOKEN`
 - Format options: `--format json | checklist | structured`
 
 ## Commands
 
-### Read Tasks
+### Read Resources
 
 ```bash
-# All tasks (with optional filter)
-todorust tasks "project:Work & priority:4"
+# Get tasks (with optional filter)
+todorust get tasks --filter "today"
 
-# Today's tasks
-todorust tasks "due today"
+# Get tasks in a specific project (filter by project name)
+todorust get tasks --filter "Work"
 
-# Upcoming tasks
-todorust tasks "due within \"7 days of today\""
+# Get all projects
+todorust get projects
 
-# Search tasks
-todorust tasks "search query"
+# Get all sections (optionally for a project)
+todorust get sections --project-id "12345678"
 
-# Completed recently
-todorust tasks "completed within \"7 days of today\""
+# Get all filters
+todorust get filters
+
+# Get all labels
+todorust get labels
 ```
 
-### Projects & Filters
-
-```bash
-# List all projects
-todorust projects
-
-# List custom filters
-todorust filters
-```
-
-### Create Task
+### Create Resources
 
 ```bash
 # Basic task
-todorust create "Buy milk"
+todorust add task --title "Buy milk"
 
-# With description
-todorust create "Buy milk" --description "2% milk + bananas"
+# Task with description, project, due date, and priority (1-4)
+todorust add task --title "Review PR" --description "Check the sync logic" --project-id "222" --due-date "tomorrow" --priority 4
 
-# With due date
-todorust create "Call dentist" --due "2026-01-15"
+# Create a project
+todorust add project --name "Side Project"
 
-# Into project
-todorust create "Finish report" --project "Work"
-
-# With priority (1=none, 2=low, 3=normal, 4=high)
-todorust create "Urgent task" --priority 4
-
-# With labels
-todorust create "Meeting" --labels "work,meeting"
-
-# Checklist format
-todorust create "Shopping" --format checklist
+# Create a section in a project
+todorust add section --name "Backlog" --project-id "222"
 ```
 
-### Complete/Reopen
+### Update/Move Resources
 
 ```bash
-# Complete task (by ID)
-todorust complete "12345"
+# Edit a task's title or priority
+todorust edit task --task-id "123" --title "New Title" --priority 3
 
-# Reopen task
-todorust reopen "12345"
+# Move a task to a different project/section
+todorust move task --task-id "123" --project-id "456" --section-id "789"
+
+# Complete a task
+todorust complete task --task-id "123"
+
+# Reopen a completed task
+todorust reopen task --task-id "123"
 ```
 
-## Filter Syntax
+### Delete Resources
 
-| Filter | Example |
-|--------|---------|
-| By Project | `project:Work` |
-| By Date | `due today`, `due tomorrow`, `due within "7 days of today"` |
-| By Priority | `priority:4` (high), `priority:3` (normal), `priority:2` (low), `priority:1` (none) |
-| Combined | `project:Work & priority:4 & !completed` |
+```bash
+# Delete a task
+todorust delete task --task-id "123"
+
+# Delete a project
+todorust delete project --project-id "456"
+```
+
+## Filter Syntax (for `get tasks --filter`)
+
+The `--filter` argument in `get tasks` currently performs a simple case-insensitive substring match on the task **content** or **project name**.
+
+| Filter Type | Example |
+|-------------|---------|
+| By Content  | `todorust get tasks --filter "milk"` |
+| By Project  | `todorust get tasks --filter "Work"` |
+
+*Note: For complex Todoist filters (e.g., "due today & p1"), you may need to fetch all tasks and filter them yourself or use Todoist's native filter queries if supported by the backend.*
 
 ## Output Formats
 
-- `json`: Full JSON output (default for scripting)
-- `checklist`: Human-readable checklist
-- `structured`: Compact table format
+- `json`: Full JSON output (default). Best for agents to parse IDs and details.
+- `checklist`: Markdown checklist (`- [ ] task (Project)`).
+- `structured`: Markdown grouped by project with headings.
 
-## Examples
+## Examples for Agents
 
-### List today's tasks
+### 1. Finding a Task ID
+If a user says "Complete my 'Buy milk' task", first search for it:
 ```bash
-todorust tasks "due today" --format checklist
+todorust get tasks --filter "Buy milk" --format json
+```
+Then use the `id` from the JSON to complete it:
+```bash
+todorust complete task --task-id "ID_FROM_JSON"
 ```
 
-### Add high-priority task to Work project
+### 2. Organizing a Project
+To see sections in a project:
 ```bash
-todorust create "Review PR #86" --project "Work" --priority 4 --labels "review,github"
+todorust get sections --project-id "PROJECT_ID"
 ```
-
-### Find and complete a task
+To move a task into a section:
 ```bash
-todorust tasks "Buy milk" --format json
-# Find the ID, then:
-todorust complete "12345"
-```
-
-### Weekly review
-```bash
-todorust tasks "completed within \"7 days of today\"" --format checklist
+todorust move task --task-id "TASK_ID" --project-id "PROJECT_ID" --section-id "SECTION_ID"
 ```

@@ -233,7 +233,7 @@
 - ✅ Obsidian integration skill
 
 **Skills:**
-- ✅ obsidian-todorust skill for Obsidian integration
+- ✅ todoist-reports skill for Obsidian integration
 - ✅ Ready-to-use Markdown output for daily/weekly reports
 
 ### 📊 Version History

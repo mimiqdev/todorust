@@ -1,6 +1,6 @@
 # Todoist Filter Syntax Reference
 
-Complete guide to Todoist filter syntax for use with todorust `--filter` parameter.
+> **⚠️ CLI Support Note**: The `todorust` CLI currently supports simple keyword filtering on task content or project name via `--filter "keyword"`. The full Todoist filter syntax below is for your reference when viewing custom filters via `todorust get filters` or for manual use in the Todoist app.
 
 ## Date Filters
 

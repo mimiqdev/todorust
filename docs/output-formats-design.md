@@ -366,5 +366,5 @@ todorust tasks --format template --template-file my-template.md
 
 - Update README.md with format examples
 - Update USAGE.md with --format parameter documentation
-- Add examples to obsidian-todorust skill
+- Add examples to todoist-reports skill
 - Remove JSON parsing instructions from skill (no longer needed)
