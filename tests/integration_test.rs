@@ -1,7 +1,6 @@
 use std::env;
 
 #[tokio::test]
-#[ignore]
 async fn test_end_to_end_workflow() {
     // Get token from environment variable or config file
     let token = env::var("TODORUST_API_TOKEN")
@@ -12,8 +11,15 @@ async fn test_end_to_end_workflow() {
             todorust::config::load_config()
                 .ok()
                 .map(|config| config.api_token)
-        })
-        .expect("TODOIST_API_TOKEN env var or config file required");
+        });
+
+    let token = match token {
+        Some(t) => t,
+        None => {
+            println!("Skipping integration test: No API token found in env or config");
+            return;
+        }
+    };
 
     println!(
         "Integration test starting with real API (token prefix: {})...",

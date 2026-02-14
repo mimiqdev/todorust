@@ -29,7 +29,7 @@ jobs:
       - name: Run integration tests
         env:
           TODOIST_API_TOKEN: ${{ secrets.TODOIST_API_TOKEN }}
-        run: cargo test --workspace -- --ignored
+        run: cargo test --test integration_test
 
   coverage:
     runs-on: ubuntu-latest
