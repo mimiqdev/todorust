@@ -240,6 +240,6 @@ The following legacy commands are still supported for backward compatibility:
 # Run tests
 cargo test
 
-# Run with config
-TODOIST_TOKEN=your_token cargo test -- --ignored
+# Setup Git hooks (auto-format and strict clippy)
+git config core.hooksPath scripts/hooks
 ```
