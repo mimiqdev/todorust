@@ -1,0 +1,15 @@
+#!/bin/sh
+# Todorust Pre-push Hook: Strict clippy check
+
+echo "--- Git Hook: Running strict clippy check ---"
+
+# Run clippy with all targets, all features, and treat warnings as errors
+cargo clippy --all-targets --all-features -- -D warnings
+
+if [ $? -ne 0 ]; then
+    echo "--- Error: Clippy checks failed. Push aborted. ---"
+    exit 1
+fi
+
+echo "--- Clippy checks passed ---"
+exit 0

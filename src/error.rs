@@ -55,7 +55,10 @@ mod tests {
     #[test]
     fn test_todo_error_config_message() {
         let error = TodoError::Config("test error message".to_string());
-        assert_eq!(format!("{}", error), "Configuration error: test error message");
+        assert_eq!(
+            format!("{}", error),
+            "Configuration error: test error message"
+        );
     }
 
     #[test]

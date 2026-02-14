@@ -1,0 +1,16 @@
+#!/bin/sh
+# Todorust Pre-commit Hook: Auto-format code
+
+echo "--- Git Hook: Formatting Rust code with cargo fmt ---"
+
+# Run cargo fmt on the entire project
+cargo fmt --all
+
+# Re-add formatted files that were already staged
+staged_rust_files=$(git diff --cached --name-only --diff-filter=ACM | grep '\.rs$')
+if [ -n "$staged_rust_files" ]; then
+    git add $staged_rust_files
+fi
+
+echo "--- Formatting complete ---"
+exit 0

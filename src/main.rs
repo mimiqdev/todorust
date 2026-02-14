@@ -39,10 +39,11 @@ async fn main() -> crate::error::Result<()> {
                 "Please get your API token from: https://todoist.com/app/settings/integrations"
             );
             println!("Enter your API token:");
-                        let mut input = String::new();
-                        std::io::stdin().read_line(&mut input).map_err(crate::error::TodoError::Io)?;
-                        input.trim().to_string()
-            
+            let mut input = String::new();
+            std::io::stdin()
+                .read_line(&mut input)
+                .map_err(crate::error::TodoError::Io)?;
+            input.trim().to_string()
         };
 
         if token.is_empty() {
