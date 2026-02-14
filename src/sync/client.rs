@@ -521,11 +521,13 @@ impl TodoistSyncClient {
 mod tests {
     use super::*;
     use httpmock::{HttpMockResponse, Method, MockServer};
+    use serial_test::serial;
     use tokio::test;
 
     // ... existing tests ...
 
     #[test]
+    #[serial]
     async fn test_client_new() {
         let client = TodoistSyncClient::new("test_token".to_string());
         assert_eq!(client.token, "test_token");
@@ -584,6 +586,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[serial]
     async fn test_sync_url_is_correct() {
         let client = TodoistSyncClient::new("test".to_string());
         if let Ok(env_url) = std::env::var("TODORUST_SYNC_URL") {

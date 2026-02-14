@@ -285,6 +285,7 @@ pub async fn run(cli: Cli) -> crate::error::Result<()> {
 mod tests {
     use super::*;
     use crate::cli::InitCommand;
+    use serial_test::serial;
 
     #[test]
     fn test_cli_parsing_basic() {
@@ -297,6 +298,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[serial]
     async fn test_run_init_with_token() {
         let temp_dir = tempfile::tempdir().unwrap();
         let temp_path = temp_dir.path().to_path_buf();
@@ -318,6 +320,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[serial]
     async fn test_run_config_show_no_config() {
         let temp_dir = tempfile::tempdir().unwrap();
         let temp_path = temp_dir.path().to_path_buf();
@@ -339,6 +342,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[serial]
     async fn test_run_get_tasks_flow() {
         use httpmock::prelude::*;
         let server = MockServer::start();
@@ -370,6 +374,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[serial]
     async fn test_run_add_task_flow() {
         use httpmock::prelude::*;
         let server = MockServer::start();
@@ -413,6 +418,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[serial]
     async fn test_run_complete_task_flow() {
         use httpmock::prelude::*;
         let server = MockServer::start();
