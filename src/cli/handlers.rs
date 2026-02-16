@@ -10,9 +10,8 @@ pub async fn get_tasks(
     fields: Option<&str>,
     limit: Option<usize>,
 ) -> Result<()> {
-    // Get all tasks and projects to resolve project names
-    let tasks = client.get_tasks().await?;
-    let projects = client.get_projects().await?;
+    // Get all tasks and projects using a single sync call
+    let (projects, tasks) = client.get_projects_and_tasks().await?;
 
     // Build project name lookup
     let project_map: HashMap<&str, &str> = projects
@@ -178,8 +177,8 @@ pub async fn get_task(
     format: &OutputFormat,
     fields: Option<&str>,
 ) -> Result<()> {
-    let tasks = client.get_tasks().await?;
-    let projects = client.get_projects().await?;
+    // Get tasks and projects using a single sync call
+    let (projects, tasks) = client.get_projects_and_tasks().await?;
 
     let project_map: HashMap<&str, &str> = projects
         .iter()
@@ -592,6 +591,67 @@ pub async fn reorder_sections(client: &TodoistSyncClient, section_ids: String) -
         "action": "reorder",
         "type": "sections",
         "section_ids": sections
+    });
+    println!("{}", serde_json::to_string_pretty(&response).unwrap());
+    Ok(())
+}
+
+/// Synchronize data with Todoist
+/// - force: true = full sync, false = incremental (or full if no sync token)
+pub async fn sync(client: &TodoistSyncClient, force: bool) -> Result<()> {
+    if force {
+        // Force full sync by resetting the sync token
+        tracing::info!("Performing full sync");
+        // Clear the sync token to force a full sync
+        // We need to access the internal sync_token through a method
+        // For now, let's use sync with "*" token directly
+        let response = client
+            .sync(&["projects", "items", "sections", "labels", "filters"])
+            .await?;
+        let response_json = serde_json::json!({
+            "status": "success",
+            "action": "sync",
+            "full": true,
+            "sync_token": response.sync_token
+        });
+        println!("{}", serde_json::to_string_pretty(&response_json).unwrap());
+    } else {
+        // Incremental sync (default)
+        tracing::info!("Performing incremental sync");
+        let response = client
+            .sync_with_cache(&["projects", "items", "sections", "labels", "filters"])
+            .await?;
+        let response_json = serde_json::json!({
+            "status": "success",
+            "action": "sync",
+            "full": false,
+            "sync_token": response.sync_token
+        });
+        println!("{}", serde_json::to_string_pretty(&response_json).unwrap());
+    }
+    Ok(())
+}
+
+/// Display cache status
+pub fn cache_status(client: &TodoistSyncClient) -> Result<()> {
+    let status = client.get_cache_status();
+    let response = serde_json::json!({
+        "status": "cache_status",
+        "exists": status.exists,
+        "cached_at": status.cached_at,
+        "is_expired": status.is_expired,
+        "sync_token": status.sync_token
+    });
+    println!("{}", serde_json::to_string_pretty(&response).unwrap());
+    Ok(())
+}
+
+/// Clear the local cache
+pub fn cache_clear(client: &TodoistSyncClient) -> Result<()> {
+    client.clear_cache()?;
+    let response = serde_json::json!({
+        "status": "success",
+        "action": "cache_clear"
     });
     println!("{}", serde_json::to_string_pretty(&response).unwrap());
     Ok(())

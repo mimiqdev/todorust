@@ -7,6 +7,7 @@ A Rust CLI tool for Todoist Sync API integration with simplified JSON output for
 
 ## Features
 
+- **Local Caching**: Automatic incremental sync with local cache to reduce API calls.
 - **Batch Operations**: Execute multiple commands in a single Sync request.
 - **AI-Optimized Output**: JSON responses for all actions, with field selection (`--fields`) to save tokens.
 - **Advanced Filtering**: Support for priority and status keywords in task queries.
@@ -37,6 +38,8 @@ Todorust uses a **verb-resource** command pattern for intuitive CLI usage.
 | `reopen` | Reopen completed tasks |
 | `delete` | Remove resources |
 | `reorder` | Reorder sections |
+| `sync` | Sync data with Todoist (uses local cache) |
+| `cache` | Manage local cache (status, clear) |
 
 ### Command Usage Examples
 
@@ -241,6 +244,38 @@ Output:
 - [x] Complete proposal (Priority: 4)
 - [ ] Review docs (Priority: 3)
 ```
+
+## Local Caching
+
+Todorust uses local caching to reduce API calls and improve performance:
+
+```bash
+# Sync data with Todoist (uses incremental sync by default)
+todorust sync
+
+# Force full sync
+todorust sync --force
+
+# Check cache status
+todorust cache status
+
+# Clear local cache
+todorust cache clear
+```
+
+### How It Works
+
+- **First sync**: Full sync downloads all data and stores it locally
+- **Subsequent syncs**: Incremental sync only downloads changes (uses `sync_token`)
+- **Cache expiry**: Default 5 minutes, configurable via `TODORUST_CACHE_TTL` env var
+- **Hybrid mode**: Get commands use cache when valid, commands trigger sync
+
+### Environment Variables
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `TODORUST_CACHE_TTL` | Cache expiry in seconds | 300 (5 min) |
+| `TODORUST_SYNC_URL` | Custom sync API URL | api.todoist.com |
 
 ## Agent Skills
 

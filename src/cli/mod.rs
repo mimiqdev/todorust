@@ -53,6 +53,14 @@ pub enum Commands {
     #[command(subcommand)]
     Reorder(ReorderCommands),
 
+    /// Synchronize data (default incremental, --force for full sync)
+    #[command(subcommand)]
+    Sync(SyncCommands),
+
+    /// Cache management
+    #[command(subcommand)]
+    Cache(CacheCommands),
+
     /// Execute multiple commands in a single batch request
     Batch {
         /// JSON array of commands
@@ -312,6 +320,25 @@ pub enum ReorderCommands {
         #[arg(long)]
         section_ids: String,
     },
+}
+
+/// Sync commands - for synchronizing data with Todoist
+#[derive(Parser)]
+pub enum SyncCommands {
+    /// 同步数据 (默认增量，--force 全量)
+    Sync {
+        #[arg(long)]
+        force: bool,
+    },
+}
+
+/// Cache commands - for managing local cache
+#[derive(Parser)]
+pub enum CacheCommands {
+    /// 显示缓存状态
+    Status,
+    /// 清除缓存
+    Clear,
 }
 
 pub mod error;

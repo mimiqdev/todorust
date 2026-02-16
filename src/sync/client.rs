@@ -4,8 +4,18 @@ use reqwest::Client as HttpClient;
 
 use crate::error::TodoError;
 
+use super::cache::{Cache, CacheData, CacheManager};
 use super::commands::{Command, CommandBuilder};
 use super::models::{SyncReadResponse, SyncWriteResponse};
+
+/// Cache status information
+#[derive(Debug, Clone, Default)]
+pub struct CacheStatus {
+    pub exists: bool,
+    pub cached_at: i64,
+    pub is_expired: bool,
+    pub sync_token: Option<String>,
+}
 
 /// Todoist Sync API Client
 ///
@@ -39,6 +49,9 @@ pub struct TodoistSyncClient {
     sync_url: String,
     sync_token: RefCell<Option<String>>,
     http: HttpClient,
+    cache_manager: CacheManager,
+    cache: RefCell<Option<Cache>>,
+    cache_ttl: u64,
 }
 
 impl TodoistSyncClient {
@@ -60,11 +73,20 @@ impl TodoistSyncClient {
         let sync_url = std::env::var("TODORUST_SYNC_URL")
             .unwrap_or_else(|_| "https://api.todoist.com/api/v1/sync".to_string());
 
+        // Get cache TTL from environment or use default (5 minutes)
+        let cache_ttl = std::env::var("TODORUST_CACHE_TTL")
+            .ok()
+            .and_then(|v| v.parse().ok())
+            .unwrap_or(300);
+
         Self {
             token: token.trim().to_string(),
             sync_url,
             sync_token: RefCell::new(None),
             http,
+            cache_manager: CacheManager::new(),
+            cache: RefCell::new(None),
+            cache_ttl,
         }
     }
 
@@ -75,6 +97,118 @@ impl TodoistSyncClient {
             sync_url,
             sync_token: RefCell::new(None),
             http: HttpClient::new(),
+            cache_manager: CacheManager::new(),
+            cache: RefCell::new(None),
+            cache_ttl: 300,
+        }
+    }
+
+    /// 尝试从缓存加载数据
+    pub fn load_cache(&self) -> Result<Option<Cache>, TodoError> {
+        self.cache_manager.load()
+    }
+
+    /// 保存缓存
+    pub fn save_cache(&self, sync_token: &str, data: CacheData) -> Result<(), TodoError> {
+        let cache = Cache {
+            sync_token: sync_token.to_string(),
+            cached_at: std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .map(|d| d.as_secs() as i64)
+                .unwrap_or(0),
+            data,
+        };
+        self.cache_manager.save(&cache)
+    }
+
+    /// 检查缓存是否过期 (默认 5 分钟 = 300 秒)
+    pub fn is_cache_expired(&self) -> bool {
+        if let Some(ref cache) = *self.cache.borrow() {
+            self.cache_manager.is_expired(cache, self.cache_ttl)
+        } else {
+            true
+        }
+    }
+
+    /// 混合同步：优先使用缓存，必要时增量/全量同步
+    pub async fn sync_with_cache(
+        &self,
+        resource_types: &[&str],
+    ) -> Result<SyncReadResponse, TodoError> {
+        // 尝试加载缓存
+        if self.cache.borrow().is_none() {
+            if let Ok(Some(cache)) = self.cache_manager.load() {
+                *self.cache.borrow_mut() = Some(cache);
+            }
+        }
+
+        // 检查是否需要全量同步 (先获取值，避免跨 await 持有 RefCell)
+        let needs_full_sync = {
+            let sync_token = self.sync_token.borrow();
+            let token = sync_token.as_deref();
+            let expired = self.is_cache_expired();
+            expired || token.is_none() || token == Some("*") // "*" means no prior sync
+        };
+
+        if needs_full_sync {
+            // 全量同步
+            tracing::info!("Performing full sync");
+            let response = self.sync(resource_types).await?;
+            *self.sync_token.borrow_mut() = Some(response.sync_token.clone());
+            return Ok(response);
+        }
+
+        // 增量同步
+        tracing::info!("Performing incremental sync");
+        let response = self.sync(resource_types).await?;
+
+        // 检查返回的 sync_token，如果是 "*" 说明需要全量同步
+        if response.sync_token == "*" {
+            tracing::info!("Incremental sync returned '*', will use full sync next time");
+        }
+
+        *self.sync_token.borrow_mut() = Some(response.sync_token.clone());
+        Ok(response)
+    }
+
+    /// 获取缓存数据
+    pub fn get_cached_data(&self) -> Option<CacheData> {
+        self.cache.borrow().as_ref().map(|c| c.data.clone())
+    }
+
+    /// 清除缓存
+    pub fn clear_cache(&self) -> Result<(), TodoError> {
+        self.cache_manager.clear()?;
+        *self.cache.borrow_mut() = None;
+        *self.sync_token.borrow_mut() = None;
+        Ok(())
+    }
+
+    /// 获取缓存状态信息
+    pub fn get_cache_status(&self) -> CacheStatus {
+        if let Some(ref cache) = *self.cache.borrow() {
+            let is_expired = self.cache_manager.is_expired(cache, self.cache_ttl);
+            CacheStatus {
+                exists: true,
+                cached_at: cache.cached_at,
+                is_expired,
+                sync_token: Some(cache.sync_token.clone()),
+            }
+        } else if self.cache_manager.exists() {
+            // File exists but not loaded in memory
+            if let Ok(Some(ref cache)) = self.cache_manager.load() {
+                let is_expired = self.cache_manager.is_expired(cache, self.cache_ttl);
+                CacheStatus {
+                    exists: true,
+                    cached_at: cache.cached_at,
+                    is_expired,
+                    sync_token: Some(cache.sync_token.clone()),
+                }
+            } else {
+                CacheStatus::default()
+            }
+        } else {
+            CacheStatus::default()
         }
     }
 
@@ -131,6 +265,16 @@ impl TodoistSyncClient {
 
         // Update sync token
         self.set_sync_token(parsed.sync_token.clone());
+
+        // 保存到缓存
+        let data = CacheData {
+            projects: parsed.projects.clone(),
+            items: parsed.items.clone(),
+            sections: parsed.sections.clone(),
+            labels: parsed.labels.clone(),
+            filters: parsed.filters.clone(),
+        };
+        self.save_cache(&parsed.sync_token, data)?;
 
         Ok(parsed)
     }
@@ -237,34 +381,44 @@ impl TodoistSyncClient {
 
     // Resources: Read Methods
 
-    /// 获取所有项目 (使用 Sync API)
+    /// 获取所有项目 (使用混合同步)
     pub async fn get_projects(&self) -> Result<Vec<crate::models::Project>, TodoError> {
-        let response = self.sync(&["projects"]).await?;
+        let response = self.sync_with_cache(&["projects"]).await?;
         Ok(response.projects.into_iter().map(Into::into).collect())
     }
 
-    /// 获取所有任务/项目 (使用 Sync API)
+    /// 获取所有任务/项目 (使用混合同步)
     pub async fn get_tasks(&self) -> Result<Vec<crate::models::Task>, TodoError> {
-        let response = self.sync(&["items"]).await?;
+        let response = self.sync_with_cache(&["items"]).await?;
         Ok(response.items.into_iter().map(Into::into).collect())
     }
 
-    /// 获取所有分区 (使用 Sync API)
+    /// 获取所有分区 (使用混合同步)
     pub async fn get_sections(&self) -> Result<Vec<super::models::SyncSection>, TodoError> {
-        let response = self.sync(&["sections"]).await?;
+        let response = self.sync_with_cache(&["sections"]).await?;
         Ok(response.sections)
     }
 
-    /// 获取所有标签 (使用 Sync API)
+    /// 获取所有标签 (使用混合同步)
     pub async fn get_labels(&self) -> Result<Vec<super::models::SyncLabel>, TodoError> {
-        let response = self.sync(&["labels"]).await?;
+        let response = self.sync_with_cache(&["labels"]).await?;
         Ok(response.labels)
     }
 
-    /// 获取所有过滤器 (使用 Sync API)
+    /// 获取所有过滤器 (使用混合同步)
     pub async fn get_filters(&self) -> Result<Vec<super::models::SyncFilter>, TodoError> {
-        let response = self.sync(&["filters"]).await?;
+        let response = self.sync_with_cache(&["filters"]).await?;
         Ok(response.filters)
+    }
+
+    /// 获取项目和任务 (用于需要两者的场景，如 get_tasks handler)
+    pub async fn get_projects_and_tasks(
+        &self,
+    ) -> Result<(Vec<crate::models::Project>, Vec<crate::models::Task>), TodoError> {
+        let response = self.sync_with_cache(&["projects", "items"]).await?;
+        let projects = response.projects.into_iter().map(Into::into).collect();
+        let tasks = response.items.into_iter().map(Into::into).collect();
+        Ok((projects, tasks))
     }
 
     // Resources: Write Methods
