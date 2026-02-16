@@ -808,4 +808,41 @@ mod tests {
 
         assert!(result.is_ok());
     }
+
+    #[tokio::test]
+    #[serial]
+    async fn test_run_cache_status_flow() {
+        let temp_dir = tempfile::tempdir().unwrap();
+        let temp_path = temp_dir.path().to_path_buf();
+        std::env::set_var("TODORUST_CONFIG_DIR", &temp_path);
+        std::env::remove_var("TODORUST_API_TOKEN");
+        std::env::set_var("TODORUST_API_TOKEN", "test_token_for_cache");
+
+        let cli = Cli {
+            format: OutputFormat::Json,
+            command: Commands::Cache(CacheCommands::Status),
+        };
+
+        let result = run(cli).await;
+        // Should work even without cache file existing
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    #[serial]
+    async fn test_run_cache_clear_flow() {
+        let temp_dir = tempfile::tempdir().unwrap();
+        let temp_path = temp_dir.path().to_path_buf();
+        std::env::set_var("TODORUST_CONFIG_DIR", &temp_path);
+        std::env::remove_var("TODORUST_API_TOKEN");
+        std::env::set_var("TODORUST_API_TOKEN", "test_token_for_cache");
+
+        let cli = Cli {
+            format: OutputFormat::Json,
+            command: Commands::Cache(CacheCommands::Clear),
+        };
+
+        let result = run(cli).await;
+        assert!(result.is_ok());
+    }
 }
