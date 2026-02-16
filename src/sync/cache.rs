@@ -74,3 +74,87 @@ impl CacheManager {
         self.cache_path.exists()
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use tempfile::TempDir;
+
+    #[test]
+    fn test_cache_save_load() {
+        let temp_dir = TempDir::new().unwrap();
+        let cache_path = temp_dir.path().join("cache.json");
+
+        let cache = Cache {
+            sync_token: "test_token".to_string(),
+            cached_at: 1234567890,
+            data: CacheData::default(),
+        };
+
+        let manager = CacheManager {
+            cache_path: cache_path.clone(),
+        };
+        manager.save(&cache).unwrap();
+
+        let loaded = manager.load().unwrap().unwrap();
+        assert_eq!(loaded.sync_token, "test_token");
+        assert_eq!(loaded.cached_at, 1234567890);
+    }
+
+    #[test]
+    fn test_cache_expired() {
+        let temp_dir = TempDir::new().unwrap();
+        let manager = CacheManager {
+            cache_path: temp_dir.path().join("cache.json"),
+        };
+
+        let old_cache = Cache {
+            sync_token: "test".to_string(),
+            cached_at: 1,
+            data: CacheData::default(),
+        };
+        assert!(manager.is_expired(&old_cache, 300));
+
+        let new_cache = Cache {
+            sync_token: "test".to_string(),
+            cached_at: std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .map(|d| d.as_secs() as i64)
+                .unwrap_or(0),
+            data: CacheData::default(),
+        };
+        assert!(!manager.is_expired(&new_cache, 300));
+    }
+
+    #[test]
+    fn test_cache_nonexistent() {
+        let temp_dir = TempDir::new().unwrap();
+        let manager = CacheManager {
+            cache_path: temp_dir.path().join("nonexistent.json"),
+        };
+
+        let result = manager.load().unwrap();
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn test_cache_clear() {
+        let temp_dir = TempDir::new().unwrap();
+        let cache_path = temp_dir.path().join("cache.json");
+
+        let cache = Cache {
+            sync_token: "test".to_string(),
+            cached_at: 123,
+            data: CacheData::default(),
+        };
+
+        let manager = CacheManager {
+            cache_path: cache_path.clone(),
+        };
+        manager.save(&cache).unwrap();
+        assert!(manager.exists());
+
+        manager.clear().unwrap();
+        assert!(!manager.exists());
+    }
+}
