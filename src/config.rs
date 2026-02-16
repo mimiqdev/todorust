@@ -29,7 +29,10 @@ pub fn load_config() -> Result<Config> {
     // First, check for API token in environment variable
     if let Ok(token) = std::env::var("TODORUST_API_TOKEN") {
         if !token.is_empty() {
-            return Ok(Config { api_token: token, ..Default::default() });
+            return Ok(Config {
+                api_token: token,
+                ..Default::default()
+            });
         }
     }
 

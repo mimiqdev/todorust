@@ -131,7 +131,10 @@ impl TodoistSyncClient {
     }
 
     /// 混合同步：优先使用缓存，必要时增量/全量同步
-    pub async fn sync_with_cache(&self, resource_types: &[&str]) -> Result<SyncReadResponse, TodoError> {
+    pub async fn sync_with_cache(
+        &self,
+        resource_types: &[&str],
+    ) -> Result<SyncReadResponse, TodoError> {
         // 尝试加载缓存
         if self.cache.borrow().is_none() {
             if let Ok(Some(cache)) = self.cache_manager.load() {
@@ -139,14 +142,13 @@ impl TodoistSyncClient {
             }
         }
 
-        // 检查是否需要全量同步
-        let sync_token = self.sync_token.borrow();
-        let token = sync_token.as_deref();
-        let needs_full_sync = self.is_cache_expired() 
-            || token.is_none() 
-            || token == Some("*");  // "*" means no prior sync
-
-        drop(sync_token);  // Release borrow
+        // 检查是否需要全量同步 (先获取值，避免跨 await 持有 RefCell)
+        let needs_full_sync = {
+            let sync_token = self.sync_token.borrow();
+            let token = sync_token.as_deref();
+            let expired = self.is_cache_expired();
+            expired || token.is_none() || token == Some("*") // "*" means no prior sync
+        };
 
         if needs_full_sync {
             // 全量同步
@@ -159,12 +161,12 @@ impl TodoistSyncClient {
         // 增量同步
         tracing::info!("Performing incremental sync");
         let response = self.sync(resource_types).await?;
-        
+
         // 检查返回的 sync_token，如果是 "*" 说明需要全量同步
         if response.sync_token == "*" {
             tracing::info!("Incremental sync returned '*', will use full sync next time");
         }
-        
+
         *self.sync_token.borrow_mut() = Some(response.sync_token.clone());
         Ok(response)
     }
@@ -410,7 +412,9 @@ impl TodoistSyncClient {
     }
 
     /// 获取项目和任务 (用于需要两者的场景，如 get_tasks handler)
-    pub async fn get_projects_and_tasks(&self) -> Result<(Vec<crate::models::Project>, Vec<crate::models::Task>), TodoError> {
+    pub async fn get_projects_and_tasks(
+        &self,
+    ) -> Result<(Vec<crate::models::Project>, Vec<crate::models::Task>), TodoError> {
         let response = self.sync_with_cache(&["projects", "items"]).await?;
         let projects = response.projects.into_iter().map(Into::into).collect();
         let tasks = response.items.into_iter().map(Into::into).collect();

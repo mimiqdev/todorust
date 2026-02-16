@@ -605,7 +605,9 @@ pub async fn sync(client: &TodoistSyncClient, force: bool) -> Result<()> {
         // Clear the sync token to force a full sync
         // We need to access the internal sync_token through a method
         // For now, let's use sync with "*" token directly
-        let response = client.sync(&["projects", "items", "sections", "labels", "filters"]).await?;
+        let response = client
+            .sync(&["projects", "items", "sections", "labels", "filters"])
+            .await?;
         let response_json = serde_json::json!({
             "status": "success",
             "action": "sync",
@@ -616,7 +618,9 @@ pub async fn sync(client: &TodoistSyncClient, force: bool) -> Result<()> {
     } else {
         // Incremental sync (default)
         tracing::info!("Performing incremental sync");
-        let response = client.sync_with_cache(&["projects", "items", "sections", "labels", "filters"]).await?;
+        let response = client
+            .sync_with_cache(&["projects", "items", "sections", "labels", "filters"])
+            .await?;
         let response_json = serde_json::json!({
             "status": "success",
             "action": "sync",

@@ -21,6 +21,12 @@ pub struct CacheManager {
     cache_path: PathBuf,
 }
 
+impl Default for CacheManager {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl CacheManager {
     pub fn new() -> Self {
         let config_dir = dirs::config_dir()
@@ -90,7 +96,7 @@ mod tests {
     fn test_cache_save_load() {
         let temp_dir = TempDir::new().unwrap();
         let cache_path = temp_dir.path().join("cache.json");
-        
+
         let cache = Cache {
             sync_token: "test_token".to_string(),
             cached_at: 1234567890,
@@ -102,10 +108,10 @@ mod tests {
                 filters: vec![],
             },
         };
-        
+
         let manager = CacheManager::with_path(cache_path);
         manager.save(&cache).unwrap();
-        
+
         let loaded = manager.load().unwrap().unwrap();
         assert_eq!(loaded.sync_token, "test_token");
         assert_eq!(loaded.cached_at, 1234567890);
@@ -115,14 +121,14 @@ mod tests {
     fn test_cache_expired() {
         let temp_dir = TempDir::new().unwrap();
         let manager = CacheManager::with_path(temp_dir.path().join("cache.json"));
-        
+
         let old_cache = Cache {
             sync_token: "test".to_string(),
             cached_at: 1, // very old
             data: CacheData::default(),
         };
         assert!(manager.is_expired(&old_cache, 300));
-        
+
         let new_cache = Cache {
             sync_token: "test".to_string(),
             cached_at: std::time::SystemTime::now()
@@ -138,7 +144,7 @@ mod tests {
     fn test_cache_nonexistent() {
         let temp_dir = TempDir::new().unwrap();
         let manager = CacheManager::with_path(temp_dir.path().join("nonexistent.json"));
-        
+
         let result = manager.load().unwrap();
         assert!(result.is_none());
     }
@@ -147,7 +153,7 @@ mod tests {
     fn test_cache_with_data() {
         let temp_dir = TempDir::new().unwrap();
         let cache_path = temp_dir.path().join("cache.json");
-        
+
         let cache = Cache {
             sync_token: "abc123".to_string(),
             cached_at: 9999999999,
@@ -170,10 +176,10 @@ mod tests {
                 filters: vec![],
             },
         };
-        
+
         let manager = CacheManager::with_path(cache_path);
         manager.save(&cache).unwrap();
-        
+
         let loaded = manager.load().unwrap().unwrap();
         assert_eq!(loaded.data.projects.len(), 1);
         assert_eq!(loaded.data.projects[0].name, "Test Project");
@@ -183,13 +189,13 @@ mod tests {
     fn test_cache_clear() {
         let temp_dir = TempDir::new().unwrap();
         let cache_path = temp_dir.path().join("cache.json");
-        
+
         let cache = Cache {
             sync_token: "test".to_string(),
             cached_at: 123,
             data: CacheData::default(),
         };
-        
+
         let manager = CacheManager::with_path(cache_path);
         manager.save(&cache).unwrap();
         assert!(manager.exists());
