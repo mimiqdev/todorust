@@ -4,6 +4,7 @@ use reqwest::Client as HttpClient;
 
 use crate::error::TodoError;
 
+use super::cache::{Cache, CacheData, CacheManager};
 use super::commands::{Command, CommandBuilder};
 use super::models::{SyncReadResponse, SyncWriteResponse};
 
@@ -39,6 +40,8 @@ pub struct TodoistSyncClient {
     sync_url: String,
     sync_token: RefCell<Option<String>>,
     http: HttpClient,
+    cache_manager: CacheManager,
+    cache: RefCell<Option<Cache>>,
 }
 
 impl TodoistSyncClient {
@@ -65,6 +68,8 @@ impl TodoistSyncClient {
             sync_url,
             sync_token: RefCell::new(None),
             http,
+            cache_manager: CacheManager::new(),
+            cache: RefCell::new(None),
         }
     }
 
@@ -75,7 +80,41 @@ impl TodoistSyncClient {
             sync_url,
             sync_token: RefCell::new(None),
             http: HttpClient::new(),
+            cache_manager: CacheManager::new(),
+            cache: RefCell::new(None),
         }
+    }
+
+    /// 尝试从缓存加载数据
+    pub fn load_cache(&self) -> Result<Option<Cache>, TodoError> {
+        self.cache_manager.load()
+    }
+
+    /// 保存缓存
+    pub fn save_cache(&self, sync_token: &str, data: CacheData) -> Result<(), TodoError> {
+        let cache = Cache {
+            sync_token: sync_token.to_string(),
+            cached_at: std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .map(|d| d.as_secs() as i64)
+                .unwrap_or(0),
+            data,
+        };
+        self.cache_manager.save(&cache)
+    }
+
+    /// 检查缓存是否过期 (默认 5 分钟 = 300 秒)
+    pub fn is_cache_expired(&self) -> bool {
+        if let Some(ref cache) = *self.cache.borrow() {
+            self.cache_manager.is_expired(cache, 300)
+        } else {
+            true
+        }
+    }
+
+    /// 获取缓存数据
+    pub fn get_cached_data(&self) -> Option<CacheData> {
+        self.cache.borrow().as_ref().map(|c| c.data.clone())
     }
 
     /// Get authorization header value
@@ -131,6 +170,16 @@ impl TodoistSyncClient {
 
         // Update sync token
         self.set_sync_token(parsed.sync_token.clone());
+
+        // 保存到缓存
+        let data = CacheData {
+            projects: parsed.projects.clone(),
+            items: parsed.items.clone(),
+            sections: parsed.sections.clone(),
+            labels: parsed.labels.clone(),
+            filters: parsed.filters.clone(),
+        };
+        self.save_cache(&parsed.sync_token, data)?;
 
         Ok(parsed)
     }

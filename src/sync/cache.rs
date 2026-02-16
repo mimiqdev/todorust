@@ -1,14 +1,14 @@
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
-#[derive(Serialize, Deserialize, Default)]
+#[derive(Serialize, Deserialize, Clone, Default)]
 pub struct Cache {
     pub sync_token: String,
     pub cached_at: i64,
     pub data: CacheData,
 }
 
-#[derive(Serialize, Deserialize, Default)]
+#[derive(Serialize, Deserialize, Clone, Default)]
 pub struct CacheData {
     pub projects: Vec<super::models::SyncProject>,
     pub items: Vec<super::models::SyncTask>,
