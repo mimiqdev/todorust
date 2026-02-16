@@ -10,7 +10,7 @@ mod models;
 
 pub use cache::{Cache, CacheManager};
 
-pub use client::TodoistSyncClient;
+pub use client::{CacheStatus, TodoistSyncClient};
 pub use commands::{
     Command, CommandBuilder, FilterAddArgs, FilterOrderArgs, ItemAddArgs, ItemUpdateArgs,
     LabelAddArgs, ProjectAddArgs, SectionAddArgs,

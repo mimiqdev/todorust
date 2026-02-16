@@ -8,6 +8,15 @@ use super::cache::{Cache, CacheData, CacheManager};
 use super::commands::{Command, CommandBuilder};
 use super::models::{SyncReadResponse, SyncWriteResponse};
 
+/// Cache status information
+#[derive(Debug, Clone, Default)]
+pub struct CacheStatus {
+    pub exists: bool,
+    pub cached_at: i64,
+    pub is_expired: bool,
+    pub sync_token: Option<String>,
+}
+
 /// Todoist Sync API Client
 ///
 /// This client provides access to Todoist's Sync API v1,
@@ -142,6 +151,42 @@ impl TodoistSyncClient {
     /// 获取缓存数据
     pub fn get_cached_data(&self) -> Option<CacheData> {
         self.cache.borrow().as_ref().map(|c| c.data.clone())
+    }
+
+    /// 清除缓存
+    pub fn clear_cache(&self) -> Result<(), TodoError> {
+        self.cache_manager.clear()?;
+        *self.cache.borrow_mut() = None;
+        *self.sync_token.borrow_mut() = None;
+        Ok(())
+    }
+
+    /// 获取缓存状态信息
+    pub fn get_cache_status(&self) -> CacheStatus {
+        if let Some(ref cache) = *self.cache.borrow() {
+            let is_expired = self.cache_manager.is_expired(cache, 300);
+            CacheStatus {
+                exists: true,
+                cached_at: cache.cached_at,
+                is_expired,
+                sync_token: Some(cache.sync_token.clone()),
+            }
+        } else if self.cache_manager.exists() {
+            // File exists but not loaded in memory
+            if let Ok(Some(ref cache)) = self.cache_manager.load() {
+                let is_expired = self.cache_manager.is_expired(cache, 300);
+                CacheStatus {
+                    exists: true,
+                    cached_at: cache.cached_at,
+                    is_expired,
+                    sync_token: Some(cache.sync_token.clone()),
+                }
+            } else {
+                CacheStatus::default()
+            }
+        } else {
+            CacheStatus::default()
+        }
     }
 
     /// Get authorization header value

@@ -14,8 +14,9 @@ pub use models::Project;
 pub use sync::{SyncFilter, SyncLabel, SyncProject, SyncSection, SyncTask, TodoistSyncClient};
 
 use crate::cli::{
-    handle_error, AddCommands, Cli, Commands, CompleteCommands, ConfigCommands, DeleteCommands,
-    EditCommands, GetCommands, MoveCommands, ReopenCommands, ReorderCommands,
+    handle_error, AddCommands, CacheCommands, Cli, Commands, CompleteCommands, ConfigCommands,
+    DeleteCommands, EditCommands, GetCommands, MoveCommands, ReopenCommands, ReorderCommands,
+    SyncCommands,
 };
 use clap::Parser;
 
@@ -268,6 +269,19 @@ pub async fn run(cli: Cli) -> crate::error::Result<()> {
         // Reorder commands
         Commands::Reorder(ReorderCommands::Sections { section_ids }) => {
             cli::handlers::reorder_sections(&client, section_ids.clone()).await?;
+        }
+
+        // Sync commands
+        Commands::Sync(SyncCommands::Sync { force }) => {
+            cli::handlers::sync(&client, *force).await?;
+        }
+
+        // Cache commands
+        Commands::Cache(CacheCommands::Status) => {
+            cli::handlers::cache_status(&client)?;
+        }
+        Commands::Cache(CacheCommands::Clear) => {
+            cli::handlers::cache_clear(&client)?;
         }
 
         // Batch command

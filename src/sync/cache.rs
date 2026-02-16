@@ -60,4 +60,17 @@ impl CacheManager {
             .unwrap_or(0);
         (now - cache.cached_at) > threshold_secs as i64
     }
+
+    /// 清除缓存文件
+    pub fn clear(&self) -> Result<(), crate::error::TodoError> {
+        if self.cache_path.exists() {
+            std::fs::remove_file(&self.cache_path)?;
+        }
+        Ok(())
+    }
+
+    /// 检查缓存文件是否存在
+    pub fn exists(&self) -> bool {
+        self.cache_path.exists()
+    }
 }
