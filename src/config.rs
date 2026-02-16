@@ -11,13 +11,25 @@ use std::path::PathBuf;
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Config {
     pub api_token: String,
+    /// Cache time-to-live in seconds (default: 300 = 5 minutes)
+    #[serde(default)]
+    pub cache_ttl: u64,
+}
+
+impl Default for Config {
+    fn default() -> Self {
+        Self {
+            api_token: String::new(),
+            cache_ttl: 300,
+        }
+    }
 }
 
 pub fn load_config() -> Result<Config> {
     // First, check for API token in environment variable
     if let Ok(token) = std::env::var("TODORUST_API_TOKEN") {
         if !token.is_empty() {
-            return Ok(Config { api_token: token });
+            return Ok(Config { api_token: token, ..Default::default() });
         }
     }
 
@@ -58,6 +70,7 @@ pub fn init_config(api_token: &str) -> Result<()> {
 
     let config = Config {
         api_token: api_token.to_string(),
+        ..Default::default()
     };
 
     let toml_str = toml::to_string(&config)
@@ -99,6 +112,7 @@ mod tests {
     fn test_config_serialization() {
         let config = Config {
             api_token: "my_secret_token".to_string(),
+            ..Default::default()
         };
 
         let toml_str = toml::to_string(&config).unwrap();
@@ -123,6 +137,7 @@ mod tests {
     fn test_config_debug_format() {
         let config = Config {
             api_token: "secret".to_string(),
+            ..Default::default()
         };
         let debug_format = format!("{:?}", config);
         assert!(debug_format.contains("Config"));
@@ -143,6 +158,7 @@ mod tests {
     fn test_config_serialization_format() {
         let config = Config {
             api_token: "test_token".to_string(),
+            ..Default::default()
         };
         let toml_str = toml::to_string(&config).unwrap();
         // TOML should have the format: api_token = "value"
@@ -153,9 +169,8 @@ mod tests {
     #[test]
     fn test_config_default_values() {
         // Verify Config struct can be created with default values
-        let config = Config {
-            api_token: String::new(),
-        };
+        let config = Config::default();
         assert_eq!(config.api_token, "");
+        assert_eq!(config.cache_ttl, 300);
     }
 }

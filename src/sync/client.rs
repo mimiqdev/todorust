@@ -51,6 +51,7 @@ pub struct TodoistSyncClient {
     http: HttpClient,
     cache_manager: CacheManager,
     cache: RefCell<Option<Cache>>,
+    cache_ttl: u64,
 }
 
 impl TodoistSyncClient {
@@ -72,6 +73,12 @@ impl TodoistSyncClient {
         let sync_url = std::env::var("TODORUST_SYNC_URL")
             .unwrap_or_else(|_| "https://api.todoist.com/api/v1/sync".to_string());
 
+        // Get cache TTL from environment or use default (5 minutes)
+        let cache_ttl = std::env::var("TODORUST_CACHE_TTL")
+            .ok()
+            .and_then(|v| v.parse().ok())
+            .unwrap_or(300);
+
         Self {
             token: token.trim().to_string(),
             sync_url,
@@ -79,6 +86,7 @@ impl TodoistSyncClient {
             http,
             cache_manager: CacheManager::new(),
             cache: RefCell::new(None),
+            cache_ttl,
         }
     }
 
@@ -91,6 +99,7 @@ impl TodoistSyncClient {
             http: HttpClient::new(),
             cache_manager: CacheManager::new(),
             cache: RefCell::new(None),
+            cache_ttl: 300,
         }
     }
 
@@ -115,7 +124,7 @@ impl TodoistSyncClient {
     /// 检查缓存是否过期 (默认 5 分钟 = 300 秒)
     pub fn is_cache_expired(&self) -> bool {
         if let Some(ref cache) = *self.cache.borrow() {
-            self.cache_manager.is_expired(cache, 300)
+            self.cache_manager.is_expired(cache, self.cache_ttl)
         } else {
             true
         }
@@ -130,8 +139,14 @@ impl TodoistSyncClient {
             }
         }
 
-        // 检查是否需要刷新
-        let needs_full_sync = self.is_cache_expired() || self.sync_token.borrow().is_none();
+        // 检查是否需要全量同步
+        let sync_token = self.sync_token.borrow();
+        let token = sync_token.as_deref();
+        let needs_full_sync = self.is_cache_expired() 
+            || token.is_none() 
+            || token == Some("*");  // "*" means no prior sync
+
+        drop(sync_token);  // Release borrow
 
         if needs_full_sync {
             // 全量同步
@@ -144,6 +159,12 @@ impl TodoistSyncClient {
         // 增量同步
         tracing::info!("Performing incremental sync");
         let response = self.sync(resource_types).await?;
+        
+        // 检查返回的 sync_token，如果是 "*" 说明需要全量同步
+        if response.sync_token == "*" {
+            tracing::info!("Incremental sync returned '*', will use full sync next time");
+        }
+        
         *self.sync_token.borrow_mut() = Some(response.sync_token.clone());
         Ok(response)
     }
@@ -164,7 +185,7 @@ impl TodoistSyncClient {
     /// 获取缓存状态信息
     pub fn get_cache_status(&self) -> CacheStatus {
         if let Some(ref cache) = *self.cache.borrow() {
-            let is_expired = self.cache_manager.is_expired(cache, 300);
+            let is_expired = self.cache_manager.is_expired(cache, self.cache_ttl);
             CacheStatus {
                 exists: true,
                 cached_at: cache.cached_at,
@@ -174,7 +195,7 @@ impl TodoistSyncClient {
         } else if self.cache_manager.exists() {
             // File exists but not loaded in memory
             if let Ok(Some(ref cache)) = self.cache_manager.load() {
-                let is_expired = self.cache_manager.is_expired(cache, 300);
+                let is_expired = self.cache_manager.is_expired(cache, self.cache_ttl);
                 CacheStatus {
                     exists: true,
                     cached_at: cache.cached_at,
