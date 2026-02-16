@@ -10,9 +10,8 @@ pub async fn get_tasks(
     fields: Option<&str>,
     limit: Option<usize>,
 ) -> Result<()> {
-    // Get all tasks and projects to resolve project names
-    let tasks = client.get_tasks().await?;
-    let projects = client.get_projects().await?;
+    // Get all tasks and projects using a single sync call
+    let (projects, tasks) = client.get_projects_and_tasks().await?;
 
     // Build project name lookup
     let project_map: HashMap<&str, &str> = projects
@@ -178,8 +177,8 @@ pub async fn get_task(
     format: &OutputFormat,
     fields: Option<&str>,
 ) -> Result<()> {
-    let tasks = client.get_tasks().await?;
-    let projects = client.get_projects().await?;
+    // Get tasks and projects using a single sync call
+    let (projects, tasks) = client.get_projects_and_tasks().await?;
 
     let project_map: HashMap<&str, &str> = projects
         .iter()

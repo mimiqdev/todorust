@@ -112,6 +112,33 @@ impl TodoistSyncClient {
         }
     }
 
+    /// 混合同步：优先使用缓存，必要时增量/全量同步
+    pub async fn sync_with_cache(&self, resource_types: &[&str]) -> Result<SyncReadResponse, TodoError> {
+        // 尝试加载缓存
+        if self.cache.borrow().is_none() {
+            if let Ok(Some(cache)) = self.cache_manager.load() {
+                *self.cache.borrow_mut() = Some(cache);
+            }
+        }
+
+        // 检查是否需要刷新
+        let needs_full_sync = self.is_cache_expired() || self.sync_token.borrow().is_none();
+
+        if needs_full_sync {
+            // 全量同步
+            tracing::info!("Performing full sync");
+            let response = self.sync(resource_types).await?;
+            *self.sync_token.borrow_mut() = Some(response.sync_token.clone());
+            return Ok(response);
+        }
+
+        // 增量同步
+        tracing::info!("Performing incremental sync");
+        let response = self.sync(resource_types).await?;
+        *self.sync_token.borrow_mut() = Some(response.sync_token.clone());
+        Ok(response)
+    }
+
     /// 获取缓存数据
     pub fn get_cached_data(&self) -> Option<CacheData> {
         self.cache.borrow().as_ref().map(|c| c.data.clone())
@@ -286,34 +313,42 @@ impl TodoistSyncClient {
 
     // Resources: Read Methods
 
-    /// 获取所有项目 (使用 Sync API)
+    /// 获取所有项目 (使用混合同步)
     pub async fn get_projects(&self) -> Result<Vec<crate::models::Project>, TodoError> {
-        let response = self.sync(&["projects"]).await?;
+        let response = self.sync_with_cache(&["projects"]).await?;
         Ok(response.projects.into_iter().map(Into::into).collect())
     }
 
-    /// 获取所有任务/项目 (使用 Sync API)
+    /// 获取所有任务/项目 (使用混合同步)
     pub async fn get_tasks(&self) -> Result<Vec<crate::models::Task>, TodoError> {
-        let response = self.sync(&["items"]).await?;
+        let response = self.sync_with_cache(&["items"]).await?;
         Ok(response.items.into_iter().map(Into::into).collect())
     }
 
-    /// 获取所有分区 (使用 Sync API)
+    /// 获取所有分区 (使用混合同步)
     pub async fn get_sections(&self) -> Result<Vec<super::models::SyncSection>, TodoError> {
-        let response = self.sync(&["sections"]).await?;
+        let response = self.sync_with_cache(&["sections"]).await?;
         Ok(response.sections)
     }
 
-    /// 获取所有标签 (使用 Sync API)
+    /// 获取所有标签 (使用混合同步)
     pub async fn get_labels(&self) -> Result<Vec<super::models::SyncLabel>, TodoError> {
-        let response = self.sync(&["labels"]).await?;
+        let response = self.sync_with_cache(&["labels"]).await?;
         Ok(response.labels)
     }
 
-    /// 获取所有过滤器 (使用 Sync API)
+    /// 获取所有过滤器 (使用混合同步)
     pub async fn get_filters(&self) -> Result<Vec<super::models::SyncFilter>, TodoError> {
-        let response = self.sync(&["filters"]).await?;
+        let response = self.sync_with_cache(&["filters"]).await?;
         Ok(response.filters)
+    }
+
+    /// 获取项目和任务 (用于需要两者的场景，如 get_tasks handler)
+    pub async fn get_projects_and_tasks(&self) -> Result<(Vec<crate::models::Project>, Vec<crate::models::Task>), TodoError> {
+        let response = self.sync_with_cache(&["projects", "items"]).await?;
+        let projects = response.projects.into_iter().map(Into::into).collect();
+        let tasks = response.items.into_iter().map(Into::into).collect();
+        Ok((projects, tasks))
     }
 
     // Resources: Write Methods
