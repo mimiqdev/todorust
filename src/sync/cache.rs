@@ -31,6 +31,12 @@ impl CacheManager {
         }
     }
 
+    /// Create a CacheManager with a custom cache path (for testing)
+    #[cfg(test)]
+    pub fn with_path(path: PathBuf) -> Self {
+        Self { cache_path: path }
+    }
+
     pub fn load(&self) -> Result<Option<Cache>, crate::error::TodoError> {
         if !self.cache_path.exists() {
             return Ok(None);
@@ -84,18 +90,22 @@ mod tests {
     fn test_cache_save_load() {
         let temp_dir = TempDir::new().unwrap();
         let cache_path = temp_dir.path().join("cache.json");
-
+        
         let cache = Cache {
             sync_token: "test_token".to_string(),
             cached_at: 1234567890,
-            data: CacheData::default(),
+            data: CacheData {
+                projects: vec![],
+                items: vec![],
+                sections: vec![],
+                labels: vec![],
+                filters: vec![],
+            },
         };
-
-        let manager = CacheManager {
-            cache_path: cache_path.clone(),
-        };
+        
+        let manager = CacheManager::with_path(cache_path);
         manager.save(&cache).unwrap();
-
+        
         let loaded = manager.load().unwrap().unwrap();
         assert_eq!(loaded.sync_token, "test_token");
         assert_eq!(loaded.cached_at, 1234567890);
@@ -104,17 +114,15 @@ mod tests {
     #[test]
     fn test_cache_expired() {
         let temp_dir = TempDir::new().unwrap();
-        let manager = CacheManager {
-            cache_path: temp_dir.path().join("cache.json"),
-        };
-
+        let manager = CacheManager::with_path(temp_dir.path().join("cache.json"));
+        
         let old_cache = Cache {
             sync_token: "test".to_string(),
-            cached_at: 1,
+            cached_at: 1, // very old
             data: CacheData::default(),
         };
         assert!(manager.is_expired(&old_cache, 300));
-
+        
         let new_cache = Cache {
             sync_token: "test".to_string(),
             cached_at: std::time::SystemTime::now()
@@ -129,31 +137,62 @@ mod tests {
     #[test]
     fn test_cache_nonexistent() {
         let temp_dir = TempDir::new().unwrap();
-        let manager = CacheManager {
-            cache_path: temp_dir.path().join("nonexistent.json"),
-        };
-
+        let manager = CacheManager::with_path(temp_dir.path().join("nonexistent.json"));
+        
         let result = manager.load().unwrap();
         assert!(result.is_none());
+    }
+
+    #[test]
+    fn test_cache_with_data() {
+        let temp_dir = TempDir::new().unwrap();
+        let cache_path = temp_dir.path().join("cache.json");
+        
+        let cache = Cache {
+            sync_token: "abc123".to_string(),
+            cached_at: 9999999999,
+            data: CacheData {
+                projects: vec![crate::sync::models::SyncProject {
+                    id: "p1".to_string(),
+                    name: "Test Project".to_string(),
+                    color: "red".to_string(),
+                    shared: false,
+                    favorite: true,
+                    sort_order: 1,
+                    is_archived: false,
+                    is_deleted: false,
+                    created_at: "2024-01-01T00:00:00Z".to_string(),
+                    updated_at: "2024-01-01T00:00:00Z".to_string(),
+                }],
+                items: vec![],
+                sections: vec![],
+                labels: vec![],
+                filters: vec![],
+            },
+        };
+        
+        let manager = CacheManager::with_path(cache_path);
+        manager.save(&cache).unwrap();
+        
+        let loaded = manager.load().unwrap().unwrap();
+        assert_eq!(loaded.data.projects.len(), 1);
+        assert_eq!(loaded.data.projects[0].name, "Test Project");
     }
 
     #[test]
     fn test_cache_clear() {
         let temp_dir = TempDir::new().unwrap();
         let cache_path = temp_dir.path().join("cache.json");
-
+        
         let cache = Cache {
             sync_token: "test".to_string(),
             cached_at: 123,
             data: CacheData::default(),
         };
-
-        let manager = CacheManager {
-            cache_path: cache_path.clone(),
-        };
+        
+        let manager = CacheManager::with_path(cache_path);
         manager.save(&cache).unwrap();
         assert!(manager.exists());
-
         manager.clear().unwrap();
         assert!(!manager.exists());
     }
